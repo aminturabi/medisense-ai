@@ -1,0 +1,36 @@
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:#f0fdfa;color:#134e4a}
+header{background:#0f766e;color:#fff;padding:28px 20px;text-align:center}
+.logo{font-size:32px;font-weight:800}
+.tagline{margin:6px 0 0;opacity:.92}
+main{max-width:820px;margin:0 auto;padding:18px 14px 40px}
+.card{background:#fff;border-radius:16px;padding:20px;margin:16px 0;box-shadow:0 2px 10px rgba(15,118,110,.10)}
+h2{margin:0 0 14px;font-size:20px;color:#0f766e}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.btn{border:2px solid #0f766e;background:#fff;color:#0f766e;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:600;cursor:pointer}
+.btn.primary{background:#0f766e;color:#fff}
+.btn.big{width:100%;font-size:18px;padding:14px;margin-top:12px}
+.btn.danger{border-color:#dc2626;color:#dc2626}
+.btn.lang.active{background:#0f766e;color:#fff}
+.file-btn{display:inline-block}
+textarea{width:100%;border:2px solid #99f6e4;border-radius:10px;padding:12px;font-size:15px;font-family:inherit}
+textarea:focus{outline:none;border-color:#0f766e}
+#preview{max-width:100%;border-radius:10px;margin:10px 0}
+.status{color:#0f766e;font-weight:600;min-height:20px}
+.privacy{font-size:13px;color:#64748b}
+.banner{background:#dc2626;color:#fff;font-size:19px;font-weight:700;border-radius:14px;padding:18px;margin:16px 0;line-height:1.5}
+.alert{border-radius:12px;padding:14px 16px;margin:10px 0;font-size:15px;line-height:1.55}
+.alert.severe{background:#fef2f2;border:2px solid #dc2626}
+.alert.moderate{background:#fffbeb;border:2px solid #f59e0b}
+.med{border:2px solid #ccfbf1;border-radius:12px;padding:14px 16px;margin:10px 0}
+.med h3{margin:0 0 6px;font-size:17px}
+.doses{font-size:26px;margin:6px 0}
+.chip{display:inline-block;background:#f0fdfa;border:1px solid #5eead4;border-radius:999px;padding:3px 12px;font-size:13px;margin:2px}
+.lab{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;padding:10px 2px;flex-wrap:wrap}
+.pill{border-radius:999px;padding:4px 14px;font-weight:700;font-size:14px;color:#fff;white-space:nowrap}
+.pill.normal{background:#16a34a}.pill.high,.pill.low{background:#f59e0b}
+.pill.critical_high,.pill.critical_low{background:#dc2626}
+.explanation{font-size:17px;line-height:1.75;white-space:pre-wrap}
+.explanation[dir=rtl]{text-align:right;font-size:19px}
+.unv{background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:12px 16px;margin:8px 0}
+.disclaimer{text-align:center;color:#64748b;font-size:14px;line-height:1.7;margin-top:24px}

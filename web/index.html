@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediSense AI - Prescription & Lab Report Translator</title>
+<meta name="description" content="Understand your prescription and lab report in simple English, Urdu and Pashto, with audio.">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="logo">🩺 MediSense AI</div>
+  <p class="tagline">Understand your prescription &amp; lab report - in simple words, in your language, out loud.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. Add your prescription or lab report</h2>
+    <div class="row">
+      <label class="btn file-btn">📷 Upload / take a photo
+        <input type="file" id="photo" accept="image/*" capture="environment" hidden>
+      </label>
+      <button class="btn ghost" id="sampleRx">Try a sample prescription</button>
+      <button class="btn ghost" id="sampleLab">Try a sample lab report</button>
+      <button class="btn ghost danger" id="sampleEmergency">Try an emergency report</button>
+    </div>
+    <p id="photoStatus" class="status"></p>
+    <img id="preview" alt="" hidden>
+    <textarea id="inputText" rows="7" placeholder="...or paste / type the report text here. Example:&#10;Tab. Augmentin 625 mg BD x 5 days&#10;Hemoglobin 13.2 g/dL&#10;Potassium 4.1 mmol/L"></textarea>
+    <button class="btn primary big" id="analyzeBtn">Explain it simply →</button>
+    <p class="privacy">🔒 Your text is checked for CNIC / phone numbers and those are hidden before processing. Photos are read on this device.</p>
+  </section>
+
+  <section id="results" hidden>
+    <div id="emergencyBanner" class="banner" hidden>🚨 <span></span></div>
+    <div id="alertsBox"></div>
+
+    <div class="card" id="medCard" hidden>
+      <h2>💊 Your medicines</h2>
+      <div id="medList"></div>
+    </div>
+
+    <div class="card" id="labCard" hidden>
+      <h2>🧪 Your lab results</h2>
+      <div id="labList"></div>
+    </div>
+
+    <div class="card" id="unverifiedCard" hidden>
+      <h2>❓ Could not be verified</h2>
+      <div id="unverifiedList"></div>
+      <p>Please confirm these directly with your doctor or pharmacist. No dosage is shown for unverified items - on purpose.</p>
+    </div>
+
+    <div class="card">
+      <h2>🗣️ Listen / read in your language</h2>
+      <div class="row">
+        <button class="btn lang active" data-lang="en">English</button>
+        <button class="btn lang" data-lang="ur">اردو</button>
+        <button class="btn lang" data-lang="ps">پښتو</button>
+        <button class="btn primary" id="speakBtn">🔊 Listen</button>
+        <button class="btn ghost" id="stopBtn">⏹ Stop</button>
+      </div>
+      <div id="explanation" class="explanation"></div>
+    </div>
+  </section>
+
+  <p class="disclaimer">Note: This explanation is for understanding only and does not replace your doctor's advice.<br>
+  نوٹ: یہ وضاحت صرف سمجھنے کے لیے ہے اور آپ کے ڈاکٹر کے مشورے کا متبادل نہیں ہے۔</p>
+</main>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
