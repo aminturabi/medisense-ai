@@ -1,5 +1,5 @@
 const $ = s => document.querySelector(s);
-let current = null, lang = "en";
+let current = null, lang = "en", ocrBusy = false;
 
 const SAMPLES = {
   rx: "Dr. Ahmed Khan, City Clinic\nPatient: Test, CNIC 35202-1234567-1, 0300-1234567\n\nTab. Augmentin 625 mg BD x 5 days\nTab. Panadol 500 mg TDS x 3 days\nCap. Risek 20 mg OD x 14 days",
@@ -14,6 +14,8 @@ $("#analyzeBtn").onclick = run;
 // --- Photo: blur check (Laplacian variance on a small canvas) + Tesseract.js OCR (printed text) ---
 $("#photo").onchange = async e => {
   const file = e.target.files[0]; if (!file) return;
+  ocrBusy = true;
+  $("#analyzeBtn").textContent = "⏳ Reading your photo… please wait";
   const img = $("#preview"); img.src = URL.createObjectURL(file); img.hidden = false;
   await new Promise(r => img.onload = r);
   const c = document.createElement("canvas");
@@ -32,14 +34,17 @@ $("#photo").onchange = async e => {
   const variance = lap.reduce((a, b) => a + (b - mean) ** 2, 0) / lap.length;
   if (variance < 100) {
     $("#photoStatus").textContent = "⚠ This photo looks blurry (sharpness " + Math.round(variance) + "). Please take it again in good light, close and straight - blurry photos are not read, for your safety.";
+    ocrBusy = false; $("#analyzeBtn").textContent = "Explain it simply →";
     return;
   }
-  $("#photoStatus").textContent = "Photo is sharp enough (sharpness " + Math.round(variance) + "). Reading the printed text… this can take 20-60 seconds.";
+  $("#photoStatus").textContent = "Photo is sharp enough (sharpness " + Math.round(variance) + "). Reading the printed text… this can take 20-90 seconds on a phone. Please wait - it will explain automatically, do not tap Explain yet.";
   try {
     $("#inputText").value = await ocrImage(file);
     $("#photoStatus").textContent = "Text read from the photo. Please check it below, fix any wrong word or number, then it is already explained:";
+    ocrBusy = false; $("#analyzeBtn").textContent = "Explain it simply →";
     run();
   } catch (err) {
+    ocrBusy = false; $("#analyzeBtn").textContent = "Explain it simply →";
     $("#photoStatus").textContent = "Photo reading failed (needs internet the first time). Please type or paste the report text instead.";
   }
 };
@@ -75,7 +80,12 @@ async function ocrImage(file) {
   }
   cx.putImageData(id, 0, 0);
   if (Tesseract.createWorker) {
-    const worker = await Tesseract.createWorker("eng");
+    const worker = await Tesseract.createWorker("eng", 1, {
+      logger: m => {
+        if (m.status === "recognizing text" && ocrBusy)
+          $("#photoStatus").textContent = "⏳ Reading your photo… " + Math.round((m.progress || 0) * 100) + "% - please wait, it will explain automatically.";
+      }
+    });
     try {
       await worker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
       const { data } = await worker.recognize(cv);
@@ -87,7 +97,16 @@ async function ocrImage(file) {
 
 async function run() {
   const text = $("#inputText").value.trim();
-  if (!text) { alert("Please add a photo, a sample, or paste the report text first."); return; }
+  if (!text) {
+    if (ocrBusy || !$("#preview").hidden) {
+      // A photo IS added - it is still being read. Never claim otherwise.
+      $("#photoStatus").textContent = "⏳ Your photo is added and still being read. Please wait a few more seconds - the explanation will appear automatically, no need to tap Explain.";
+      $("#photoStatus").scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      alert("Please add a photo, a sample, or paste the report text first.");
+    }
+    return;
+  }
   // Prefer the Python API when the page is served by server.py; fall back to the JS engine for static hosting.
   try {
     const r = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
