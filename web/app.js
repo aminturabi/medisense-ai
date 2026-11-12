@@ -36,14 +36,54 @@ $("#photo").onchange = async e => {
   }
   $("#photoStatus").textContent = "Photo is sharp enough (sharpness " + Math.round(variance) + "). Reading the printed text… this can take 20-60 seconds.";
   try {
-    const res = await Tesseract.recognize(file, "eng");
-    $("#inputText").value = res.data.text;
-    $("#photoStatus").textContent = "Text read from the photo. Please check it below, fix any wrong word, then it is already explained:";
+    $("#inputText").value = await ocrImage(file);
+    $("#photoStatus").textContent = "Text read from the photo. Please check it below, fix any wrong word or number, then it is already explained:";
     run();
   } catch (err) {
     $("#photoStatus").textContent = "Photo reading failed (needs internet the first time). Please type or paste the report text instead.";
   }
 };
+
+// OCR works far better on a big, clean black-on-white image than on a raw
+// phone photo: upscale small images, convert to grey, then binarize (Otsu).
+async function ocrImage(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = bmp.width < 1600 ? Math.min(3, 2000 / bmp.width) : 1;
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(bmp.width * scale); cv.height = Math.round(bmp.height * scale);
+  const cx = cv.getContext("2d");
+  cx.fillStyle = "#fff"; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.drawImage(bmp, 0, 0, cv.width, cv.height);
+  const id = cx.getImageData(0, 0, cv.width, cv.height), px = id.data;
+  const hist = new Array(256).fill(0), grey = new Uint8Array(px.length / 4);
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    grey[j] = Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
+    hist[grey[j]]++;
+  }
+  let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, best = 0, thr = 127;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t]; if (!wB) continue;
+    const wF = grey.length - wB; if (!wF) break;
+    sumB += t * hist[t];
+    const between = wB * wF * ((sumB / wB) - ((sum - sumB) / wF)) ** 2;
+    if (between > best) { best = between; thr = t; }
+  }
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const v = grey[j] > thr ? 255 : 0;
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+  cx.putImageData(id, 0, 0);
+  if (Tesseract.createWorker) {
+    const worker = await Tesseract.createWorker("eng");
+    try {
+      await worker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
+      const { data } = await worker.recognize(cv);
+      return data.text;
+    } finally { await worker.terminate(); }
+  }
+  return (await Tesseract.recognize(cv, "eng")).data.text;
+}
 
 async function run() {
   const text = $("#inputText").value.trim();
