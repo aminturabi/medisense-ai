@@ -143,3 +143,11 @@ class TestUrineReportGuard(unittest.TestCase):
         names = {l["name"] for l in r["lab_results"]}
         self.assertTrue(any("RBC" in n for n in names))
         self.assertTrue(any("Hemoglobin" in n for n in names))
+
+    def test_no_match_still_gives_an_answer(self):
+        r = analyze(URINE_OCR)
+        en = " ".join(r["explanations"]["en"])
+        self.assertIn("could not find any blood test or medicine", en)
+        self.assertEqual(en.count("does not replace your doctor"), 1)
+        em = analyze("Hemoglobin 6.4 g/dL\nPotassium 6.9 mmol/L")
+        self.assertNotIn("could not find", " ".join(em["explanations"]["en"]))

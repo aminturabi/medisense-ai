@@ -20,6 +20,10 @@ const EMERGENCY = {
   en:"URGENT: One of your results is in the danger range. Go to the nearest hospital emergency now, or call Rescue 1122.",
   ur:"فوری: آپ کا ایک نتیجہ خطرے کی حد میں ہے۔ فوراً قریبی ہسپتال کی ایمرجنسی جائیں، یا ریسکیو 1122 پر کال کریں۔",
   ps:"بیړني: ستاسو یوه پایله د خطر په حد کې ده. سمدستي نږدې روغتون ایمرجنسي ته لاړ شئ، یا ریسکیو ۱۱۲۲ ته زنګ ووهئ۔"};
+const NOT_FOUND = {
+  en:"I could not find any blood test or medicine that I know in this text. This app explains blood tests (like Hemoglobin, Glucose, Potassium) and doctor prescriptions. Urine reports and blood pressure reports are not covered yet - please ask your doctor or the lab about those.",
+  ur:"اس متن میں مجھے کوئی ایسا خون کا ٹیسٹ یا دوائی نہیں ملی جسے میں جانتا ہوں۔ یہ ایپ خون کے ٹیسٹ (جیسے ہیموگلوبن، گلوکوز، پوٹاشیم) اور ڈاکٹر کے نسخے سمجھاتی ہے۔ پیشاب کی رپورٹ اور بلڈ پریشر کی رپورٹ ابھی شامل نہیں - ان کے بارے میں اپنے ڈاکٹر یا لیب سے پوچھیں۔",
+  ps:"په دې متن کې ما ته کوم د وینې ټیسټ یا درمل ونه موندل شول چې زه یې پیژنم. دا ایپ د وینې ټیسټونه (لکه هیموګلوبین، ګلوکوز، پوټاشیم) او د ډاکټر نسخې تشریح کوي. د ادرار راپور او د وینې فشار راپور لا نه دي شامل - د هغو په اړه له خپل ډاکټر یا لابراتوار څخه وپوښتئ۔"};
 const UNVERIFIED = {
   en:"This item could not be verified automatically. Please confirm it directly with your doctor or pharmacist.",
   ur:"اس چیز کی خودکار تصدیق نہیں ہو سکی۔ براہ کرم اس کی تصدیق براہِ راست اپنے ڈاکٹر یا فارماسسٹ سے کریں۔",
@@ -130,6 +134,7 @@ function explain(meds,labs,unverified,alerts,lang){
     else if(lang==="ur")lines.push(`${lab.name}: آپ کا نتیجہ ${lab.value} ${lab.unit} ہے۔ نارمل حد ${lab.normal_text} ہے۔ نتیجہ: ${SW[lab.status].ur}۔ یہ ٹیسٹ ${lab.measures_ur} کو ناپتا ہے۔`);
     else lines.push(`${lab.name}: ستاسو پایله ${lab.value} ${lab.unit} ده. نورمال حد ${lab.normal_text} دی. پایله: ${SW[lab.status].ps}۔ دا ټیسټ ${lab.measures_ps} اندازه کوي۔`);}
   for(const u of unverified)lines.push(`${u.raw_name} ${u.strength} ${u.unit}: ${UNVERIFIED[lang]}`);
+  if(!meds.length&&!labs.length&&!unverified.length&&!alerts.length)lines.push(NOT_FOUND[lang]);
   lines.push(DISCLAIMER[lang]);
   return lines;}
 

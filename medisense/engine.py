@@ -40,6 +40,11 @@ EMERGENCY = {
     "ur": "فوری: آپ کا ایک نتیجہ خطرے کی حد میں ہے۔ فوراً قریبی ہسپتال کی ایمرجنسی جائیں، یا ریسکیو 1122 پر کال کریں۔",
     "ps": "بیړني: ستاسو یوه پایله د خطر په حد کې ده. سمدستي نږدې روغتون ایمرجنسي ته لاړ شئ، یا ریسکیو ۱۱۲۲ ته زنګ ووهئ۔",
 }
+NOT_FOUND = {
+    "en": "I could not find any blood test or medicine that I know in this text. This app explains blood tests (like Hemoglobin, Glucose, Potassium) and doctor prescriptions. Urine reports and blood pressure reports are not covered yet - please ask your doctor or the lab about those.",
+    "ur": "اس متن میں مجھے کوئی ایسا خون کا ٹیسٹ یا دوائی نہیں ملی جسے میں جانتا ہوں۔ یہ ایپ خون کے ٹیسٹ (جیسے ہیموگلوبن، گلوکوز، پوٹاشیم) اور ڈاکٹر کے نسخے سمجھاتی ہے۔ پیشاب کی رپورٹ اور بلڈ پریشر کی رپورٹ ابھی شامل نہیں - ان کے بارے میں اپنے ڈاکٹر یا لیب سے پوچھیں۔",
+    "ps": "په دې متن کې ما ته کوم د وینې ټیسټ یا درمل ونه موندل شول چې زه یې پیژنم. دا ایپ د وینې ټیسټونه (لکه هیموګلوبین، ګلوکوز، پوټاشیم) او د ډاکټر نسخې تشریح کوي. د ادرار راپور او د وینې فشار راپور لا نه دي شامل - د هغو په اړه له خپل ډاکټر یا لابراتوار څخه وپوښتئ۔",
+}
 UNVERIFIED = {
     "en": "This item could not be verified automatically. Please confirm it directly with your doctor or pharmacist.",
     "ur": "اس چیز کی خودکار تصدیق نہیں ہو سکی۔ براہ کرم اس کی تصدیق براہِ راست اپنے ڈاکٹر یا فارماسسٹ سے کریں۔",
@@ -261,6 +266,10 @@ def explain(meds, labs, unverified, alerts, lang):
             lines.append(f'{lab["name"]}: ستاسو پایله {lab["value"]:g} {lab["unit"]} ده. نورمال حد {lab["normal_text"]} دی. پایله: {status_word[lab["status"]]["ps"]}۔ دا ټیسټ {lab["measures_ps"]} اندازه کوي۔')
     for u in unverified:
         lines.append(f'{u["raw_name"]} {u["strength"]:g} {u["unit"]}: ' + UNVERIFIED[lang])
+    if not meds and not labs and not unverified and not alerts:
+        # Never answer with silence: say plainly that nothing known was
+        # found, and which report types ARE covered.
+        lines.append(NOT_FOUND[lang])
     lines.append(DISCLAIMER[lang])
     return lines
 
