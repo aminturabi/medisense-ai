@@ -63,8 +63,10 @@ LABS, DRUGS, INTERACTIONS = load_data()
 
 # ---------- PII redaction ----------
 PII_PATTERNS = [
-    (re.compile(r"\b\d{5}-\d{7}-\d\b"), "[CNIC]"),                       # Pakistani CNIC
-    (re.compile(r"\b(?:\+92|0)3\d{2}[-\s]?\d{7}\b"), "[PHONE]"),
+    (re.compile(r"\b\d{5}-\d{7}-\d\b"), "[CNIC HIDDEN]"),                 # Pakistani CNIC
+    (re.compile(r"\+\d{1,3}[-\s]?\d{3,5}[-\s]?\d{4,7}\b"), "[PHONE HIDDEN]"),  # international +92 / +91 ...
+    (re.compile(r"\b(?:\+92|0)3\d{2}[-\s]?\d{7}\b"), "[PHONE HIDDEN]"),   # Pakistani mobile 03xx-xxxxxxx
+    (re.compile(r"\b\d{10}\b"), "[PHONE HIDDEN]"),                        # bare 10-digit numbers
     (re.compile(r"\bMRN[:\s]*[A-Z0-9-]{4,}\b", re.I), "[MRN]"),
 ]
 
@@ -89,6 +91,14 @@ def parse_labs(text):
                     value = _num(m.group(1))
                 except ValueError:
                     break
+                # Decimal-drop sanity check: a value beyond what a human body
+                # can contain is almost certainly an OCR decimal error
+                # (6.5 read as 65). Flag it - never fire an emergency for it.
+                if lab.get("plausible_max") is not None and value > lab["plausible_max"]:
+                    found.append({**lab, "value": value, "status": "suspect_decimal",
+                                  "suspect_decimal": True,
+                                  "normal_text": f'{lab["normal_low"]} - {lab["normal_high"]} {lab["unit"]}'})
+                    break
                 status = "normal"
                 if lab["critical_low"] is not None and value < lab["critical_low"]:
                     status = "critical_low"
@@ -98,7 +108,7 @@ def parse_labs(text):
                     status = "low"
                 elif value > lab["normal_high"]:
                     status = "high"
-                found.append({**lab, "value": value, "status": status,
+                found.append({**lab, "value": value, "status": status, "suspect_decimal": False,
                               "normal_text": f'{lab["normal_low"]} - {lab["normal_high"]} {lab["unit"]}'})
                 break
     return found
@@ -172,6 +182,11 @@ def safety_checks(meds, labs):
         if lab["status"] in ("critical_low", "critical_high"):
             alerts.append({"type": "panic_lab", "severity": "emergency", "drug": lab["name"],
                            "message_en": f'{lab["name"]} is {lab["value"]:g} {lab["unit"]} - this is in the DANGER range.', **{}})
+        elif lab["status"] == "suspect_decimal":
+            alerts.append({"type": "decimal_check", "severity": "moderate", "drug": lab["name"],
+                           "message_en": f'{lab["name"]} was read as {lab["value"]:g} {lab["unit"]} - that is more than a human body can have, so the reading probably dropped a decimal point (did it mean {lab["value"] / 10:g}?). Please check this number in the text above and fix it. No emergency alert has been raised for it.',
+                           "message_ur": f'{lab["name"]} {lab["value"]:g} {lab["unit"]} پڑھا گیا ہے - یہ انسانی جسم میں ممکن حد سے زیادہ ہے، اس لیے غالباً عشاریہ (decimal point) چھوٹ گیا ہے (کیا اس کا مطلب {lab["value"] / 10:g} تھا؟)۔ براہ کرم اوپر والے متن میں یہ نمبر چیک کر کے درست کریں۔ اس کے لیے کوئی ایمرجنسی الرٹ نہیں لگایا گیا۔',
+                           "message_ps": f'{lab["name"]} {lab["value"]:g} {lab["unit"]} لوستل شوی - دا د انسان په بدن کې له ممکن حد څخه ډېر دی، نو شاید عشاریه (decimal point) پاتې شوې وي (ایا مطلب یې {lab["value"] / 10:g} و؟). مهرباني وکړئ دا شمېره په پورته متن کې وګورئ او سمه یې کړئ. د دې لپاره کوم بیړنی خبرتیا نه ده ورکړل شوې۔'})
     return alerts
 
 # ---------- Explanation builder (templates only, grounded in the tables above) ----------
@@ -210,8 +225,17 @@ def explain(meds, labs, unverified, alerts, lang):
                    "high": {"en": "High", "ur": "زیادہ", "ps": "لوړ"},
                    "low": {"en": "Low", "ur": "کم", "ps": "ټیټ"},
                    "critical_high": {"en": "DANGEROUSLY HIGH", "ur": "خطرناک حد تک زیادہ", "ps": "په خطرناکه کچه لوړ"},
-                   "critical_low": {"en": "DANGEROUSLY LOW", "ur": "خطرناک حد تک کم", "ps": "په خطرناکه کچه ټیټ"}}
+                   "critical_low": {"en": "DANGEROUSLY LOW", "ur": "خطرناک حد تک کم", "ps": "په خطرناکه کچه ټیټ"},
+                   "suspect_decimal": {"en": "PLEASE CHECK THE NUMBER", "ur": "براہ کرم نمبر چیک کریں", "ps": "مهرباني وکړئ شمېره وګورئ"}}
     for lab in labs:
+        if lab["status"] == "suspect_decimal":
+            if lang == "en":
+                lines.append(f'{lab["name"]}: The value read was {lab["value"]:g} {lab["unit"]} - this looks like a reading mistake (a decimal point may be missing, for example {lab["value"] / 10:g}). Please check the printed report and fix the number in the text above.')
+            elif lang == "ur":
+                lines.append(f'{lab["name"]}: پڑھی گئی قیمت {lab["value"]:g} {lab["unit"]} ہے - یہ پڑھنے کی غلطی لگتی ہے (عشاریہ چھوٹ گیا ہوگا، مثلاً {lab["value"] / 10:g})۔ براہ کرم چھپی ہوئی رپورٹ دیکھ کر اوپر والے متن میں نمبر درست کریں۔')
+            else:
+                lines.append(f'{lab["name"]}: لوستل شوې بیه {lab["value"]:g} {lab["unit"]} ده - دا د لوستلو تېروتنه ښکاري (شاید عشاریه پاتې وي، لکه {lab["value"] / 10:g}). مهرباني وکړئ چاپ شوی راپور وګورئ او په پورته متن کې شمېره سمه کړئ۔')
+            continue
         if lang == "en":
             lines.append(f'{lab["name"]}: Your result is {lab["value"]:g} {lab["unit"]}. Normal is {lab["normal_text"]}. Result: {status_word[lab["status"]]["en"]}. This test measures {lab["measures_en"]}.')
         elif lang == "ur":
@@ -231,7 +255,7 @@ def analyze(raw_text):
     alerts = safety_checks(meds, labs)
     result = {
         "medications": meds,
-        "lab_results": [{k: lab[k] for k in ("name", "value", "unit", "status", "normal_text")} for lab in labs],
+        "lab_results": [{k: lab[k] for k in ("name", "value", "unit", "status", "normal_text", "suspect_decimal")} for lab in labs],
         "unverified_items": unverified,
         "alerts": alerts,
         "emergency": any(a["severity"] == "emergency" for a in alerts),

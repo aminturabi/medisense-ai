@@ -68,6 +68,33 @@ class TestSafetyRedTeam(unittest.TestCase):
         self.assertEqual(r["medications"], [])
         self.assertEqual(r["unverified_items"], [])
 
+    def test_decimal_drop_potassium_no_false_emergency(self):
+        # OCR reads Potassium 6.9 fine (real emergency), but 69 means the
+        # decimal point was dropped - flag a check, never an emergency.
+        r = analyze("Potassium 69 mmol/L")
+        self.assertFalse(r["emergency"])
+        self.assertEqual(r["lab_results"][0]["status"], "suspect_decimal")
+        self.assertTrue(r["lab_results"][0]["suspect_decimal"])
+        self.assertTrue(any(a["type"] == "decimal_check" for a in r["alerts"]))
+
+    def test_decimal_drop_hba1c_and_creatinine(self):
+        r = analyze("HbA1c 55 %")
+        self.assertEqual(r["lab_results"][0]["status"], "suspect_decimal")
+        r2 = analyze("Creatinine 90 mg/dL")
+        self.assertEqual(r2["lab_results"][0]["status"], "suspect_decimal")
+        self.assertFalse(r2["emergency"])
+
+    def test_real_panic_still_fires(self):
+        r = analyze("Potassium 6.9 mmol/L")
+        self.assertTrue(r["emergency"])
+
+    def test_pii_hidden_tokens_and_international_formats(self):
+        out = redact_pii("Call +91 63972 28160 or 6397228160, CNIC 35202-1234567-1, mobile 0300-1234567")
+        self.assertIn("[PHONE HIDDEN]", out)
+        self.assertIn("[CNIC HIDDEN]", out)
+        self.assertNotIn("63972", out)
+        self.assertNotIn("35202", out)
+
     def test_empty_input_is_safe(self):
         r = analyze("hello world, no medical data here")
         self.assertEqual(r["medications"], [])

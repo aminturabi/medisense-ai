@@ -1,1 +1,253 @@
-{"analytes":[{"aliases":["Hemoglobin","Haemoglobin","Hb"],"critical_high":20.0,"critical_low":7.0,"key":"hemoglobin","measures_en":"the part of red blood cells that carries oxygen","measures_ps":"د وینې د سرو حجرو هغه برخه چې اکسیجن وړي","measures_ur":"خون کے سرخ خلیوں کا وہ حصہ جو آکسیجن لے کر جاتا ہے","name":"Hemoglobin","normal_high":16.0,"normal_low":12.0,"unit":"g/dL"},{"aliases":["WBC","White Blood Cells","TLC","Total Leukocyte Count"],"critical_high":30000,"critical_low":2000,"key":"wbc","measures_en":"cells that fight infection","measures_ps":"هغه حجرې چې د انتان سره جنګیږي","measures_ur":"وہ خلیے جو انفیکشن سے لڑتے ہیں","name":"WBC (White Blood Cells)","normal_high":11000,"normal_low":4000,"unit":"/uL"},{"aliases":["Platelets","Platelet Count","PLT"],"critical_high":1000000,"critical_low":50000,"key":"platelets","measures_en":"small cells that help blood to clot","measures_ps":"کوچني حجرې چې وینې په ټینګیدو کې مرسته کوي","measures_ur":"چھوٹے خلیے جو خون جمنے میں مدد دیتے ہیں","name":"Platelets","normal_high":450000,"normal_low":150000,"unit":"/uL"},{"aliases":["RBC","Red Blood Cells"],"critical_high":7.0,"critical_low":2.5,"key":"rbc","measures_en":"cells that carry oxygen around the body","measures_ps":"هغه حجرې چې په ټول بدن کې اکسیجن رسوي","measures_ur":"وہ خلیے جو پورے جسم میں آکسیجن پہنچاتے ہیں","name":"RBC (Red Blood Cells)","normal_high":5.5,"normal_low":4.0,"unit":"million/uL"},{"aliases":["Glucose","Blood Sugar","Blood Glucose","RBS","FBS","Random Blood Sugar","Fasting Blood Sugar"],"critical_high":400,"critical_low":50,"key":"glucose","measures_en":"the sugar level in your blood","measures_ps":"ستاسو په وینه کې د بورې کچه","measures_ur":"آپ کے خون میں شکر کی مقدار","name":"Glucose (Blood Sugar)","normal_high":140,"normal_low":70,"unit":"mg/dL"},{"aliases":["HbA1c","Glycated Hemoglobin"],"critical_high":12.0,"critical_low":null,"key":"hba1c","measures_en":"your average blood sugar over the last 3 months","measures_ps":"په تیرو ۳ میاشتو کې ستاسو اوسط بوره","measures_ur":"پچھلے 3 مہینوں میں آپ کی اوسط شکر","name":"HbA1c","normal_high":5.6,"normal_low":4.0,"unit":"%"},{"aliases":["Potassium","K+"],"critical_high":6.0,"critical_low":2.5,"key":"potassium","measures_en":"a salt that helps your heart and muscles work","measures_ps":"یو مالګه چې ستاسو زړه او عضلاتو سره په کار کې مرسته کوي","measures_ur":"ایک نمک جو آپ کے دل اور پٹھوں کو کام کرنے میں مدد دیتا ہے","name":"Potassium","normal_high":5.0,"normal_low":3.5,"unit":"mmol/L"},{"aliases":["Sodium","Na+"],"critical_high":160,"critical_low":120,"key":"sodium","measures_en":"a salt that controls water balance in the body","measures_ps":"یو مالګه چې په بدن کې د اوبو توازن ساتي","measures_ur":"ایک نمک جو جسم میں پانی کا توازن رکھتا ہے","name":"Sodium","normal_high":145,"normal_low":135,"unit":"mmol/L"},{"aliases":["Creatinine","Serum Creatinine"],"critical_high":4.0,"critical_low":null,"key":"creatinine","measures_en":"a waste product that shows how well the kidneys work","measures_ps":"یو فاضله ماده چې ښیې پښتورګي څنګه کار کوي","measures_ur":"ایک فاضل مادہ جو بتاتا ہے کہ گردے کیسے کام کر رہے ہیں","name":"Creatinine","normal_high":1.3,"normal_low":0.6,"unit":"mg/dL"},{"aliases":["Urea","Blood Urea","BUN"],"critical_high":100,"critical_low":null,"key":"urea","measures_en":"a waste product removed by the kidneys","measures_ps":"یو فاضله ماده چې پښتورګي یې له بدن څخه وباسي","measures_ur":"ایک فاضل مادہ جو گردے جسم سے نکالتے ہیں","name":"Urea","normal_high":50,"normal_low":10,"unit":"mg/dL"},{"aliases":["ALT","SGPT"],"critical_high":400,"critical_low":null,"key":"alt","measures_en":"an enzyme that shows how well the liver works","measures_ps":"یو انزایم چې ښیې ځیګر څنګه کار کوي","measures_ur":"ایک اینزائم جو بتاتا ہے کہ جگر کیسے کام کر رہا ہے","name":"ALT (Liver Enzyme)","normal_high":40,"normal_low":0,"unit":"U/L"},{"aliases":["Bilirubin","Total Bilirubin"],"critical_high":10.0,"critical_low":null,"key":"bilirubin","measures_en":"a yellow substance processed by the liver","measures_ps":"یو زیړ ماده چې ځیګر یې صافوي","measures_ur":"ایک پیلا مادہ جو جگر صاف کرتا ہے","name":"Bilirubin","normal_high":1.2,"normal_low":0.1,"unit":"mg/dL"},{"aliases":["Calcium","Serum Calcium"],"critical_high":13.0,"critical_low":6.5,"key":"calcium","measures_en":"a mineral needed for bones, muscles and nerves","measures_ps":"یو منرال چې هډوکو، عضلاتو او اعصابو ته اړین دی","measures_ur":"ایک معدنیات جو ہڈیوں، پٹھوں اور اعصاب کے لیے ضروری ہے","name":"Calcium","normal_high":10.5,"normal_low":8.5,"unit":"mg/dL"},{"aliases":["Cholesterol","Total Cholesterol"],"critical_high":400,"critical_low":null,"key":"cholesterol","measures_en":"a type of fat in the blood","measures_ps":"په وینه کې یو ډول غوړ","measures_ur":"خون میں ایک قسم کی چربی","name":"Cholesterol (Total)","normal_high":200,"normal_low":0,"unit":"mg/dL"}],"note":"Reference ranges vary by laboratory, age and sex. These are common adult ranges for patient education only and MUST be replaced with the reporting lab's own ranges before any clinical use."}
+{
+ "analytes": [
+  {
+   "aliases": [
+    "Hemoglobin",
+    "Haemoglobin",
+    "Hb"
+   ],
+   "critical_high": 20.0,
+   "critical_low": 7.0,
+   "key": "hemoglobin",
+   "measures_en": "the part of red blood cells that carries oxygen",
+   "measures_ps": "د وینې د سرو حجرو هغه برخه چې اکسیجن وړي",
+   "measures_ur": "خون کے سرخ خلیوں کا وہ حصہ جو آکسیجن لے کر جاتا ہے",
+   "name": "Hemoglobin",
+   "normal_high": 16.0,
+   "normal_low": 12.0,
+   "unit": "g/dL",
+   "plausible_max": 25
+  },
+  {
+   "aliases": [
+    "WBC",
+    "White Blood Cells",
+    "TLC",
+    "Total Leukocyte Count"
+   ],
+   "critical_high": 30000,
+   "critical_low": 2000,
+   "key": "wbc",
+   "measures_en": "cells that fight infection",
+   "measures_ps": "هغه حجرې چې د انتان سره جنګیږي",
+   "measures_ur": "وہ خلیے جو انفیکشن سے لڑتے ہیں",
+   "name": "WBC (White Blood Cells)",
+   "normal_high": 11000,
+   "normal_low": 4000,
+   "unit": "/uL",
+   "plausible_max": 400000
+  },
+  {
+   "aliases": [
+    "Platelets",
+    "Platelet Count",
+    "PLT"
+   ],
+   "critical_high": 1000000,
+   "critical_low": 50000,
+   "key": "platelets",
+   "measures_en": "small cells that help blood to clot",
+   "measures_ps": "کوچني حجرې چې وینې په ټینګیدو کې مرسته کوي",
+   "measures_ur": "چھوٹے خلیے جو خون جمنے میں مدد دیتے ہیں",
+   "name": "Platelets",
+   "normal_high": 450000,
+   "normal_low": 150000,
+   "unit": "/uL",
+   "plausible_max": 3000000
+  },
+  {
+   "aliases": [
+    "RBC",
+    "Red Blood Cells"
+   ],
+   "critical_high": 7.0,
+   "critical_low": 2.5,
+   "key": "rbc",
+   "measures_en": "cells that carry oxygen around the body",
+   "measures_ps": "هغه حجرې چې په ټول بدن کې اکسیجن رسوي",
+   "measures_ur": "وہ خلیے جو پورے جسم میں آکسیجن پہنچاتے ہیں",
+   "name": "RBC (Red Blood Cells)",
+   "normal_high": 5.5,
+   "normal_low": 4.0,
+   "unit": "million/uL",
+   "plausible_max": 9
+  },
+  {
+   "aliases": [
+    "Glucose",
+    "Blood Sugar",
+    "Blood Glucose",
+    "RBS",
+    "FBS",
+    "Random Blood Sugar",
+    "Fasting Blood Sugar"
+   ],
+   "critical_high": 400,
+   "critical_low": 50,
+   "key": "glucose",
+   "measures_en": "the sugar level in your blood",
+   "measures_ps": "ستاسو په وینه کې د بورې کچه",
+   "measures_ur": "آپ کے خون میں شکر کی مقدار",
+   "name": "Glucose (Blood Sugar)",
+   "normal_high": 140,
+   "normal_low": 70,
+   "unit": "mg/dL",
+   "plausible_max": 2000
+  },
+  {
+   "aliases": [
+    "HbA1c",
+    "Glycated Hemoglobin"
+   ],
+   "critical_high": 12.0,
+   "critical_low": null,
+   "key": "hba1c",
+   "measures_en": "your average blood sugar over the last 3 months",
+   "measures_ps": "په تیرو ۳ میاشتو کې ستاسو اوسط بوره",
+   "measures_ur": "پچھلے 3 مہینوں میں آپ کی اوسط شکر",
+   "name": "HbA1c",
+   "normal_high": 5.6,
+   "normal_low": 4.0,
+   "unit": "%",
+   "plausible_max": 25
+  },
+  {
+   "aliases": [
+    "Potassium",
+    "K+"
+   ],
+   "critical_high": 6.0,
+   "critical_low": 2.5,
+   "key": "potassium",
+   "measures_en": "a salt that helps your heart and muscles work",
+   "measures_ps": "یو مالګه چې ستاسو زړه او عضلاتو سره په کار کې مرسته کوي",
+   "measures_ur": "ایک نمک جو آپ کے دل اور پٹھوں کو کام کرنے میں مدد دیتا ہے",
+   "name": "Potassium",
+   "normal_high": 5.0,
+   "normal_low": 3.5,
+   "unit": "mmol/L",
+   "plausible_max": 15
+  },
+  {
+   "aliases": [
+    "Sodium",
+    "Na+"
+   ],
+   "critical_high": 160,
+   "critical_low": 120,
+   "key": "sodium",
+   "measures_en": "a salt that controls water balance in the body",
+   "measures_ps": "یو مالګه چې په بدن کې د اوبو توازن ساتي",
+   "measures_ur": "ایک نمک جو جسم میں پانی کا توازن رکھتا ہے",
+   "name": "Sodium",
+   "normal_high": 145,
+   "normal_low": 135,
+   "unit": "mmol/L",
+   "plausible_max": 220
+  },
+  {
+   "aliases": [
+    "Creatinine",
+    "Serum Creatinine"
+   ],
+   "critical_high": 4.0,
+   "critical_low": null,
+   "key": "creatinine",
+   "measures_en": "a waste product that shows how well the kidneys work",
+   "measures_ps": "یو فاضله ماده چې ښیې پښتورګي څنګه کار کوي",
+   "measures_ur": "ایک فاضل مادہ جو بتاتا ہے کہ گردے کیسے کام کر رہے ہیں",
+   "name": "Creatinine",
+   "normal_high": 1.3,
+   "normal_low": 0.6,
+   "unit": "mg/dL",
+   "plausible_max": 20
+  },
+  {
+   "aliases": [
+    "Urea",
+    "Blood Urea",
+    "BUN"
+   ],
+   "critical_high": 100,
+   "critical_low": null,
+   "key": "urea",
+   "measures_en": "a waste product removed by the kidneys",
+   "measures_ps": "یو فاضله ماده چې پښتورګي یې له بدن څخه وباسي",
+   "measures_ur": "ایک فاضل مادہ جو گردے جسم سے نکالتے ہیں",
+   "name": "Urea",
+   "normal_high": 50,
+   "normal_low": 10,
+   "unit": "mg/dL",
+   "plausible_max": 600
+  },
+  {
+   "aliases": [
+    "ALT",
+    "SGPT"
+   ],
+   "critical_high": 400,
+   "critical_low": null,
+   "key": "alt",
+   "measures_en": "an enzyme that shows how well the liver works",
+   "measures_ps": "یو انزایم چې ښیې ځیګر څنګه کار کوي",
+   "measures_ur": "ایک اینزائم جو بتاتا ہے کہ جگر کیسے کام کر رہا ہے",
+   "name": "ALT (Liver Enzyme)",
+   "normal_high": 40,
+   "normal_low": 0,
+   "unit": "U/L",
+   "plausible_max": 10000
+  },
+  {
+   "aliases": [
+    "Bilirubin",
+    "Total Bilirubin"
+   ],
+   "critical_high": 10.0,
+   "critical_low": null,
+   "key": "bilirubin",
+   "measures_en": "a yellow substance processed by the liver",
+   "measures_ps": "یو زیړ ماده چې ځیګر یې صافوي",
+   "measures_ur": "ایک پیلا مادہ جو جگر صاف کرتا ہے",
+   "name": "Bilirubin",
+   "normal_high": 1.2,
+   "normal_low": 0.1,
+   "unit": "mg/dL",
+   "plausible_max": 80
+  },
+  {
+   "aliases": [
+    "Calcium",
+    "Serum Calcium"
+   ],
+   "critical_high": 13.0,
+   "critical_low": 6.5,
+   "key": "calcium",
+   "measures_en": "a mineral needed for bones, muscles and nerves",
+   "measures_ps": "یو منرال چې هډوکو، عضلاتو او اعصابو ته اړین دی",
+   "measures_ur": "ایک معدنیات جو ہڈیوں، پٹھوں اور اعصاب کے لیے ضروری ہے",
+   "name": "Calcium",
+   "normal_high": 10.5,
+   "normal_low": 8.5,
+   "unit": "mg/dL",
+   "plausible_max": 25
+  },
+  {
+   "aliases": [
+    "Cholesterol",
+    "Total Cholesterol"
+   ],
+   "critical_high": 400,
+   "critical_low": null,
+   "key": "cholesterol",
+   "measures_en": "a type of fat in the blood",
+   "measures_ps": "په وینه کې یو ډول غوړ",
+   "measures_ur": "خون میں ایک قسم کی چربی",
+   "name": "Cholesterol (Total)",
+   "normal_high": 200,
+   "normal_low": 0,
+   "unit": "mg/dL",
+   "plausible_max": 2000
+  }
+ ],
+ "note": "Reference ranges vary by laboratory, age and sex. These are common adult ranges for patient education only and MUST be replaced with the reporting lab's own ranges before any clinical use."
+}

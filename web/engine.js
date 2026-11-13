@@ -31,8 +31,11 @@ function ratio(a,b){a=a.toLowerCase();b=b.toLowerCase();
   for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
     dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
   return 1-dp[m][n]/Math.max(m,n);}
-function redact(text){return text.replace(/\b\d{5}-\d{7}-\d\b/g,"[CNIC]")
-  .replace(/\b(?:\+92|0)3\d{2}[-\s]?\d{7}\b/g,"[PHONE]").replace(/\bMRN[:\s]*[A-Z0-9-]{4,}\b/gi,"[MRN]");}
+function redact(text){return text.replace(/\b\d{5}-\d{7}-\d\b/g,"[CNIC HIDDEN]")
+  .replace(/\+\d{1,3}[-\s]?\d{3,5}[-\s]?\d{4,7}\b/g,"[PHONE HIDDEN]")
+  .replace(/\b(?:\+92|0)3\d{2}[-\s]?\d{7}\b/g,"[PHONE HIDDEN]")
+  .replace(/\b\d{10}\b/g,"[PHONE HIDDEN]")
+  .replace(/\bMRN[:\s]*[A-Z0-9-]{4,}\b/gi,"[MRN]");}
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
 
 function parseLabs(text,D){
@@ -41,11 +44,16 @@ function parseLabs(text,D){
     for(const alias of lab.aliases){
       const m=text.match(new RegExp(escRe(alias)+"\\s*[:\\-]?\\s*(\\d[\\d,]*\\.?\\d*)","i"));
       if(m){const v=parseFloat(m[1].replace(/,/g,""));
+        // Decimal-drop sanity check: beyond-human values are OCR decimal
+        // errors (6.5 read as 65) - flag them, never fire an emergency.
+        if(lab.plausible_max!=null&&v>lab.plausible_max){
+          out.push({...lab,value:v,status:"suspect_decimal",suspect_decimal:true,normal_text:`${lab.normal_low} - ${lab.normal_high} ${lab.unit}`});
+          break;}
         let s="normal";
         if(lab.critical_low!==null&&v<lab.critical_low)s="critical_low";
         else if(lab.critical_high!==null&&v>lab.critical_high)s="critical_high";
         else if(v<lab.normal_low)s="low"; else if(v>lab.normal_high)s="high";
-        out.push({...lab,value:v,status:s,normal_text:`${lab.normal_low} - ${lab.normal_high} ${lab.unit}`});
+        out.push({...lab,value:v,status:s,suspect_decimal:false,normal_text:`${lab.normal_low} - ${lab.normal_high} ${lab.unit}`});
         break;}
     }}
   return out;}
@@ -81,8 +89,14 @@ function safetyChecks(meds,labs,D){
   const gens=new Set(meds.map(x=>x.generic));
   for(const r of D.interactions)if(gens.has(r.a)&&gens.has(r.b))
     alerts.push({type:"interaction",severity:r.severity,drug:`${r.a} + ${r.b}`,message_en:r.message_en,message_ur:r.message_ur,message_ps:r.message_ps});
-  for(const lab of labs)if(lab.status==="critical_low"||lab.status==="critical_high")
-    alerts.push({type:"panic_lab",severity:"emergency",drug:lab.name,message_en:`${lab.name} is ${lab.value} ${lab.unit} - this is in the DANGER range.`,message_ur:"",message_ps:""});
+  for(const lab of labs){
+    if(lab.status==="critical_low"||lab.status==="critical_high")
+      alerts.push({type:"panic_lab",severity:"emergency",drug:lab.name,message_en:`${lab.name} is ${lab.value} ${lab.unit} - this is in the DANGER range.`,message_ur:"",message_ps:""});
+    else if(lab.status==="suspect_decimal")
+      alerts.push({type:"decimal_check",severity:"moderate",drug:lab.name,
+        message_en:`${lab.name} was read as ${lab.value} ${lab.unit} - that is more than a human body can have, so the reading probably dropped a decimal point (did it mean ${lab.value/10}?). Please check this number in the text above and fix it. No emergency alert has been raised for it.`,
+        message_ur:`${lab.name} ${lab.value} ${lab.unit} پڑھا گیا ہے - یہ انسانی جسم میں ممکن حد سے زیادہ ہے، اس لیے غالباً عشاریہ (decimal point) چھوٹ گیا ہے (کیا اس کا مطلب ${lab.value/10} تھا؟)۔ براہ کرم اوپر والے متن میں یہ نمبر چیک کر کے درست کریں۔ اس کے لیے کوئی ایمرجنسی الرٹ نہیں لگایا گیا۔`,
+        message_ps:`${lab.name} ${lab.value} ${lab.unit} لوستل شوی - دا د انسان په بدن کې له ممکن حد څخه ډېر دی، نو شاید عشاریه (decimal point) پاتې شوې وي (ایا مطلب یې ${lab.value/10} و؟). مهرباني وکړئ دا شمېره په پورته متن کې وګورئ او سمه یې کړئ. د دې لپاره کوم بیړنی خبرتیا نه ده ورکړل شوې۔`});}
   return alerts;}
 
 function explain(meds,labs,unverified,alerts,lang){
@@ -97,8 +111,14 @@ function explain(meds,labs,unverified,alerts,lang){
       else if(lang==="ur")lines.push(`1 گولی (${med.strength} ${med.unit}) ان اوقات میں لیں: ${t.join("، ")}${med.days?`، ${med.days} دن تک`:""}۔ ${med.precaution_ur}`);
       else lines.push(`۱ ګولۍ (${med.strength} ${med.unit}) په دې وختونو کې واخلئ: ${t.join("، ")}${med.days?`، د ${med.days} ورځو لپاره`:""}۔ ${med.precaution_ps}`);}}
   const SW={normal:{en:"Normal",ur:"نارمل",ps:"نورمال"},high:{en:"High",ur:"زیادہ",ps:"لوړ"},low:{en:"Low",ur:"کم",ps:"ټیټ"},
-    critical_high:{en:"DANGEROUSLY HIGH",ur:"خطرناک حد تک زیادہ",ps:"په خطرناکه کچه لوړ"},critical_low:{en:"DANGEROUSLY LOW",ur:"خطرناک حد تک کم",ps:"په خطرناکه کچه ټیټ"}};
+    critical_high:{en:"DANGEROUSLY HIGH",ur:"خطرناک حد تک زیادہ",ps:"په خطرناکه کچه لوړ"},critical_low:{en:"DANGEROUSLY LOW",ur:"خطرناک حد تک کم",ps:"په خطرناکه کچه ټیټ"},
+    suspect_decimal:{en:"PLEASE CHECK THE NUMBER",ur:"براہ کرم نمبر چیک کریں",ps:"مهرباني وکړئ شمېره وګورئ"}};
   for(const lab of labs){
+    if(lab.status==="suspect_decimal"){
+      if(lang==="en")lines.push(`${lab.name}: The value read was ${lab.value} ${lab.unit} - this looks like a reading mistake (a decimal point may be missing, for example ${lab.value/10}). Please check the printed report and fix the number in the text above.`);
+      else if(lang==="ur")lines.push(`${lab.name}: پڑھی گئی قیمت ${lab.value} ${lab.unit} ہے - یہ پڑھنے کی غلطی لگتی ہے (عشاریہ چھوٹ گیا ہوگا، مثلاً ${lab.value/10})۔ براہ کرم چھپی ہوئی رپورٹ دیکھ کر اوپر والے متن میں نمبر درست کریں۔`);
+      else lines.push(`${lab.name}: لوستل شوې بیه ${lab.value} ${lab.unit} ده - دا د لوستلو تېروتنه ښکاري (شاید عشاریه پاتې وي، لکه ${lab.value/10}). مهرباني وکړئ چاپ شوی راپور وګورئ او په پورته متن کې شمېره سمه کړئ۔`);
+      continue;}
     if(lang==="en")lines.push(`${lab.name}: Your result is ${lab.value} ${lab.unit}. Normal is ${lab.normal_text}. Result: ${SW[lab.status].en}. This test measures ${lab.measures_en}.`);
     else if(lang==="ur")lines.push(`${lab.name}: آپ کا نتیجہ ${lab.value} ${lab.unit} ہے۔ نارمل حد ${lab.normal_text} ہے۔ نتیجہ: ${SW[lab.status].ur}۔ یہ ٹیسٹ ${lab.measures_ur} کو ناپتا ہے۔`);
     else lines.push(`${lab.name}: ستاسو پایله ${lab.value} ${lab.unit} ده. نورمال حد ${lab.normal_text} دی. پایله: ${SW[lab.status].ps}۔ دا ټیسټ ${lab.measures_ps} اندازه کوي۔`);}
@@ -111,7 +131,7 @@ function analyzeLocal(raw){
   const labs=parseLabs(text,D),[meds,unverified]=parseMeds(text,D);
   const alerts=safetyChecks(meds,labs,D);
   return {medications:meds,
-    lab_results:labs.map(l=>({name:l.name,value:l.value,unit:l.unit,status:l.status,normal_text:l.normal_text})),
+    lab_results:labs.map(l=>({name:l.name,value:l.value,unit:l.unit,status:l.status,normal_text:l.normal_text,suspect_decimal:!!l.suspect_decimal})),
     unverified_items:unverified,alerts,
     emergency:alerts.some(a=>a.severity==="emergency"),
     requires_pharmacist_verification:unverified.length>0,

@@ -39,8 +39,14 @@ $("#photo").onchange = async e => {
   }
   $("#photoStatus").textContent = "Photo is sharp enough (sharpness " + Math.round(variance) + "). Reading the printed text… this can take 20-90 seconds on a phone. Please wait - it will explain automatically, do not tap Explain yet.";
   try {
-    $("#inputText").value = await ocrImage(file);
-    $("#photoStatus").textContent = "Text read from the photo. Please check it below, fix any wrong word or number, then it is already explained:";
+    const rawText = await ocrImage(file);
+    // Privacy BEFORE display: mask phone / CNIC numbers in the OCR text
+    // itself, so the review box never shows the real numbers.
+    const safeText = redact(rawText);
+    $("#inputText").value = safeText;
+    $("#photoStatus").textContent = "Text read from the photo." +
+      (safeText !== rawText ? " Phone / CNIC numbers have been hidden for privacy." : "") +
+      " Please check it below, fix any wrong word or number, then it is already explained:";
     ocrBusy = false; $("#analyzeBtn").textContent = "Explain it simply →";
     run();
   } catch (err) {
@@ -89,10 +95,35 @@ async function ocrImage(file) {
     try {
       await worker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
       const { data } = await worker.recognize(cv);
-      return data.text;
+      return cleanOcrData(data);
     } finally { await worker.terminate(); }
   }
-  return (await Tesseract.recognize(cv, "eng")).data.text;
+  return cleanOcrData((await Tesseract.recognize(cv, "eng")).data);
+}
+
+// Drop OCR noise BEFORE the text is shown: low-confidence words, pure-symbol
+// tokens (logo / QR junk like © | ~) and stray single characters are removed
+// line by line. Single letters/digits with decent confidence are kept -
+// an "x" in "BD x 5 days" and a lone dose number are real content.
+function cleanOcrData(data) {
+  const keepWord = (text, conf) => {
+    if (conf != null && conf < 45) return false;          // low-confidence noise
+    if (!/[A-Za-z0-9]/.test(text)) return false;           // pure symbols / junk
+    if (text.length === 1 && !/[A-Za-z0-9]/.test(text)) return false;
+    return true;
+  };
+  if (data && Array.isArray(data.lines) && data.lines.length && data.lines[0].words) {
+    return data.lines
+      .map(line => (line.words || []).filter(w => keepWord(w.text, w.confidence)).map(w => w.text).join(" "))
+      .filter(t => t.trim().length > 1)
+      .join("\n");
+  }
+  // Fallback when word data is unavailable: same token rules, no confidence.
+  return (data && data.text ? data.text : "")
+    .split("\n")
+    .map(line => line.split(/\s+/).filter(t => t && keepWord(t, null)).join(" "))
+    .filter(t => t.trim().length > 1)
+    .join("\n");
 }
 
 async function run() {
@@ -117,7 +148,7 @@ async function run() {
 }
 
 const DOSE_ICON = { OD: "🌅", BD: "🌅 🌙", BID: "🌅 🌙", TDS: "🌅 ☀️ 🌙", TID: "🌅 ☀️ 🌙", QID: "🌅 ☀️ 🌇 🌙", HS: "🌙", SOS: "❗", PRN: "❗" };
-const STATUS_LABEL = { normal: "Normal ✅", high: "High ⬆", low: "Low ⬇", critical_high: "DANGER - VERY HIGH 🚨", critical_low: "DANGER - VERY LOW 🚨" };
+const STATUS_LABEL = { normal: "Normal ✅", high: "High ⬆", low: "Low ⬇", critical_high: "DANGER - VERY HIGH 🚨", critical_low: "DANGER - VERY LOW 🚨", suspect_decimal: "CHECK NUMBER ⚠" };
 
 function render() {
   $("#results").hidden = false;
@@ -144,10 +175,17 @@ function render() {
   $("#results").scrollIntoView({ behavior: "smooth" });
 }
 
+function isDisclaimer(line) {
+  return line.includes("does not replace your doctor") || line.includes("متبادل نہیں ہے") || line.includes("ځای نه نیسي");
+}
 function showLang() {
   if (!current) return;
   const box = $("#explanation");
-  box.textContent = current.explanations[lang].join("\n");
+  // Exactly ONE disclaimer, at the bottom, in the selected language only -
+  // strip any disclaimer lines the engine added (any language), then add ours.
+  const lines = current.explanations[lang].filter(l => !isDisclaimer(l));
+  lines.push(DISCLAIMER[lang]);
+  box.textContent = lines.join("\n");
   box.dir = lang === "en" ? "ltr" : "rtl";
 }
 document.querySelectorAll(".lang").forEach(btn => btn.onclick = () => {
