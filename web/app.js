@@ -40,6 +40,12 @@ $("#photo").onchange = async e => {
   $("#photoStatus").textContent = "Photo is sharp enough (sharpness " + Math.round(variance) + "). Reading the printed text… this can take 20-90 seconds on a phone. Please wait - it will explain automatically, do not tap Explain yet.";
   try {
     const rawText = await ocrImage(file);
+    if (!rawText.trim()) {
+      ocrBusy = false; $("#analyzeBtn").textContent = "Explain it simply →";
+      $("#photoStatus").textContent = "⚠ No readable text was found in this photo. Please take it again - closer, straight, in good light - or type the report text in the box below.";
+      $("#photoStatus").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     // Privacy BEFORE display: mask phone / CNIC numbers in the OCR text
     // itself, so the review box never shows the real numbers.
     const safeText = redact(rawText);
@@ -59,7 +65,9 @@ $("#photo").onchange = async e => {
 // phone photo: upscale small images, convert to grey, then binarize (Otsu).
 async function ocrImage(file) {
   const bmp = await createImageBitmap(file);
-  const scale = bmp.width < 1600 ? Math.min(3, 2000 / bmp.width) : 1;
+  // Big camera photos are DOWNSCALED first - reading a 4000px page on a
+  // phone stalls or dies silently. Small images are upscaled for accuracy.
+  const scale = bmp.width > 1600 ? 1600 / bmp.width : Math.min(3, 2000 / bmp.width);
   const cv = document.createElement("canvas");
   cv.width = Math.round(bmp.width * scale); cv.height = Math.round(bmp.height * scale);
   const cx = cv.getContext("2d");
@@ -94,7 +102,8 @@ async function ocrImage(file) {
     });
     try {
       await worker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
-      const { data } = await worker.recognize(cv);
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("ocr-timeout")), 150000));
+      const { data } = await Promise.race([worker.recognize(cv), timeout]);
       return cleanOcrData(data);
     } finally { await worker.terminate(); }
   }
@@ -107,6 +116,7 @@ async function ocrImage(file) {
 // an "x" in "BD x 5 days" and a lone dose number are real content.
 function cleanOcrData(data) {
   const keepWord = (text, conf) => {
+    if (/^\+{1,4}$/.test(text)) return true;              // dipstick results: +, ++, +++
     if (conf != null && conf < 45) return false;          // low-confidence noise
     if (!/[A-Za-z0-9]/.test(text)) return false;           // pure symbols / junk
     if (text.length === 1 && !/[A-Za-z0-9]/.test(text)) return false;
@@ -126,15 +136,30 @@ function cleanOcrData(data) {
     .join("\n");
 }
 
+// A message shown IN the results area - always visible, unlike alert()
+// (blocked in some in-app browsers) or a silent failure.
+function showNotice(msg) {
+  current = null;
+  $("#results").hidden = false;
+  $("#emergencyBanner").hidden = true;
+  $("#alertsBox").innerHTML = "";
+  $("#medCard").hidden = true;
+  $("#labCard").hidden = true;
+  $("#unverifiedCard").hidden = true;
+  const box = $("#explanation");
+  box.textContent = msg;
+  box.dir = "ltr";
+  $("#results").scrollIntoView({ behavior: "smooth" });
+}
+
 async function run() {
   const text = $("#inputText").value.trim();
   if (!text) {
     if (ocrBusy || !$("#preview").hidden) {
       // A photo IS added - it is still being read. Never claim otherwise.
-      $("#photoStatus").textContent = "⏳ Your photo is added and still being read. Please wait a few more seconds - the explanation will appear automatically, no need to tap Explain.";
-      $("#photoStatus").scrollIntoView({ behavior: "smooth", block: "center" });
+      showNotice("⏳ Your photo is added and still being read. Please wait - the explanation will appear here automatically when the reading finishes. No need to tap Explain.");
     } else {
-      alert("Please add a photo, a sample, or paste the report text first.");
+      showNotice("Please add a photo, tap one of the samples, or paste the report text first - then tap Explain.");
     }
     return;
   }
@@ -143,7 +168,10 @@ async function run() {
     const r = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
     if (!r.ok) throw new Error("api");
     current = await r.json();
-  } catch { current = analyzeLocal(text); }
+  } catch {
+    try { current = analyzeLocal(text); }
+    catch { showNotice("⚠ Something went wrong while checking this text on this device. Please try again - or, if a photo failed, type the report text in the box instead."); return; }
+  }
   render();
 }
 

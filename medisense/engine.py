@@ -79,14 +79,31 @@ def redact_pii(text):
 def _num(s):
     return float(s.replace(",", ""))
 
+# Blood-count tests that also appear, with a totally different meaning,
+# in urine microscopy (e.g. "RBC 02-03 /HPF" is cells per microscope field,
+# NOT a blood count). A urine report must never produce blood values.
+BLOOD_COUNT_KEYS = {"hemoglobin", "wbc", "platelets", "rbc"}
+
+def _is_urine_report(text):
+    low = text.lower()
+    return "urine" in low and ("hpf" in low or "microscopic" in low or "pus cell" in low)
+
 def parse_labs(text):
     found = []
+    urine_ctx = _is_urine_report(text)
     for lab in LABS:
+        if urine_ctx and lab["key"] in BLOOD_COUNT_KEYS:
+            continue
         for alias in lab["aliases"]:
             pat = re.compile(re.escape(alias) + r"\s*[:\-]?\s*(\d[\d,]*\.?\d*)\s*(?:" + re.escape(lab["unit"]) + r")?",
                              re.I)
             m = pat.search(text)
             if m:
+                # Microscopy ranges ("RBC 02-03") and per-field units
+                # ("... /HPF") are not single blood values - skip them.
+                rest = text[m.end():m.end() + 10]
+                if re.match(r"\s*[-\u2013]\s*\d", rest) or "hpf" in rest.lower():
+                    break
                 try:
                     value = _num(m.group(1))
                 except ValueError:

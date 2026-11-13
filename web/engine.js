@@ -38,12 +38,19 @@ function redact(text){return text.replace(/\b\d{5}-\d{7}-\d\b/g,"[CNIC HIDDEN]")
   .replace(/\bMRN[:\s]*[A-Z0-9-]{4,}\b/gi,"[MRN]");}
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
 
+const BLOOD_COUNT_KEYS=new Set(["hemoglobin","wbc","platelets","rbc"]);
+function isUrineReport(text){const low=text.toLowerCase();return low.includes("urine")&&(low.includes("hpf")||low.includes("microscopic")||low.includes("pus cell"));}
 function parseLabs(text,D){
   const out=[];
+  const urineCtx=isUrineReport(text);
   for(const lab of D.labs){
+    if(urineCtx&&BLOOD_COUNT_KEYS.has(lab.key))continue;
     for(const alias of lab.aliases){
       const m=text.match(new RegExp(escRe(alias)+"\\s*[:\\-]?\\s*(\\d[\\d,]*\\.?\\d*)","i"));
-      if(m){const v=parseFloat(m[1].replace(/,/g,""));
+      if(m){
+        const rest=text.slice(m.index+m[0].length,m.index+m[0].length+10);
+        if(/^\s*[-\u2013]\s*\d/.test(rest)||/hpf/i.test(rest))break;
+        const v=parseFloat(m[1].replace(/,/g,""));
         // Decimal-drop sanity check: beyond-human values are OCR decimal
         // errors (6.5 read as 65) - flag them, never fire an emergency.
         if(lab.plausible_max!=null&&v>lab.plausible_max){

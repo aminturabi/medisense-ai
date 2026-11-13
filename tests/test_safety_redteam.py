@@ -104,3 +104,42 @@ class TestSafetyRedTeam(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+URINE_OCR = """Shahid Farooq Hospital Lab. Clinical Laboratory Report
+URINE COMPLETE EXAMINATION REPORT
+Color Yellow
+Turbidity Present
+Deposit Seen
+Sp. Gravity 1.020
+pH 6.5
+Glucose Nil
+Protein Nil
+Ketone Nil
+Urobilinogen Normal
+Bilirubin Nil
+Blood Nil
+Leucocytes +++
+Pus Cells 20-22
+Epithelial Cell JHPF Nil
+RBC 02-03
+Crystals Nil
+Casts JHPF Nil
+Bacteria [HPF Nil"""
+
+
+class TestUrineReportGuard(unittest.TestCase):
+    """Urine microscopy values are per-field counts, NOT blood counts.
+    Regression: live test 2026-11-13 - 'RBC 02-03' fired a false
+    DANGER emergency (blood RBC 2 million/uL) on a urine report."""
+
+    def test_urine_rbc_range_is_not_blood_rbc(self):
+        r = analyze(URINE_OCR)
+        self.assertEqual(r["lab_results"], [])
+        self.assertFalse(r["emergency"])
+
+    def test_plain_blood_rbc_still_parses(self):
+        r = analyze("RBC 5.1 million/uL\nHemoglobin 13.5 g/dL")
+        names = {l["name"] for l in r["lab_results"]}
+        self.assertTrue(any("RBC" in n for n in names))
+        self.assertTrue(any("Hemoglobin" in n for n in names))
