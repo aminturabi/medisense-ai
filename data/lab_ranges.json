@@ -23,7 +23,9 @@
     "WBC",
     "White Blood Cells",
     "TLC",
-    "Total Leukocyte Count"
+    "Total Leukocyte Count",
+    "T.L.C",
+    "T.L.C."
    ],
    "critical_high": 30000,
    "critical_low": 2000,
@@ -41,7 +43,8 @@
    "aliases": [
     "Platelets",
     "Platelet Count",
-    "PLT"
+    "PLT",
+    "Platelets Count"
    ],
    "critical_high": 1000000,
    "critical_low": 50000,
@@ -58,7 +61,9 @@
   {
    "aliases": [
     "RBC",
-    "Red Blood Cells"
+    "Red Blood Cells",
+    "Red Count",
+    "Red Blood Count"
    ],
    "critical_high": 7.0,
    "critical_low": 2.5,
@@ -247,6 +252,151 @@
    "normal_low": 0,
    "unit": "mg/dL",
    "plausible_max": 2000
+  },
+  {
+   "aliases": [
+    "Uric Acid",
+    "S, Uric Acid",
+    "S. Uric Acid",
+    "S Uric Acid",
+    "Serum Uric Acid"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "uric_acid",
+   "measures_en": "a waste product in the blood - high levels can cause joint pain and gout",
+   "measures_ps": "په وینه کې یو فاضله ماده - لوړه کچه د بندونو درد سبب کیدی شي",
+   "measures_ur": "خون میں ایک فاضل مادہ - زیادہ مقدار جوڑوں کے درد کا سبب بن سکتی ہے",
+   "name": "Uric Acid",
+   "normal_high": 7.0,
+   "normal_low": 2.4,
+   "unit": "mg/dL",
+   "plausible_max": 30
+  },
+  {
+   "aliases": [
+    "Neutrophils",
+    "Neutrophil"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "neutrophils",
+   "measures_en": "white blood cells that fight bacterial infection - the main defender cells",
+   "measures_ps": "سپینې وینې حجرې چې د باکټریا انتان سره جنګیږي - اصلي دفاعي حجرې",
+   "measures_ur": "سفید خون کے خلیے جو بیکٹیریا کے انفیکشن سے لڑتے ہیں - اہم دفاعی خلیے",
+   "name": "Neutrophils",
+   "normal_high": 70.0,
+   "normal_low": 40.0,
+   "unit": "%",
+   "plausible_max": 100
+  },
+  {
+   "aliases": [
+    "Lymphocytes",
+    "Lymphocyte"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "lymphocytes",
+   "measures_en": "white blood cells that fight viruses and help protect the body",
+   "measures_ps": "سپینې وینې حجرې چې د ویروسونو سره جنګیږي او بدن ساتي",
+   "measures_ur": "سفید خون کے خلیے جو وائرس سے لڑتے ہیں اور جسم کی حفاظت کرتے ہیں",
+   "name": "Lymphocytes",
+   "normal_high": 50.0,
+   "normal_low": 20.0,
+   "unit": "%",
+   "plausible_max": 100
+  },
+  {
+   "aliases": [
+    "Monocytes",
+    "Monocyte"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "monocytes",
+   "measures_en": "white blood cells that clean up germs and dead cells",
+   "measures_ps": "سپینې وینې حجرې چې میکروبونه او مړې حجرې پاکوي",
+   "measures_ur": "سفید خون کے خلیے جو جراثیم اور مردہ خلیے صاف کرتے ہیں",
+   "name": "Monocytes",
+   "normal_high": 10.0,
+   "normal_low": 3.0,
+   "unit": "%",
+   "plausible_max": 100
+  },
+  {
+   "aliases": [
+    "Eosinophils",
+    "Eosinophil"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "eosinophils",
+   "measures_en": "white blood cells linked with allergy and some infections",
+   "measures_ps": "سپینې وینې حجرې چې د الرجۍ او ځینو انتانونو سره تړاو لري",
+   "measures_ur": "سفید خون کے خلیے جو الرجی اور بعض انفیکشن سے جڑے ہیں",
+   "name": "Eosinophils",
+   "normal_high": 6.0,
+   "normal_low": 0.0,
+   "unit": "%",
+   "plausible_max": 100
+  },
+  {
+   "aliases": [
+    "Basophils",
+    "Basophil"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "basophils",
+   "measures_en": "white blood cells linked with allergy reactions",
+   "measures_ps": "سپینې وینې حجرې چې د الرجۍ غبرګون سره تړاو لري",
+   "measures_ur": "سفید خون کے خلیے جو الرجی کے ردعمل سے جڑے ہیں",
+   "name": "Basophils",
+   "normal_high": 1.0,
+   "normal_low": 0.0,
+   "unit": "%",
+   "plausible_max": 100
+  },
+  {
+   "aliases": [
+    "RA Factor",
+    "Rheumatoid Factor"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "ra_factor",
+   "measures_en": "a marker linked with rheumatoid arthritis, a disease that causes joint pain and swelling",
+   "measures_ps": "یو نښه چې د بندونو د درد او پړسوب ناروغۍ سره تړاو لري",
+   "measures_ur": "ایک نشان جو جوڑوں کے درد اور سوجن کی بیماری گٹھیا سے جڑا ہے",
+   "name": "RA Factor",
+   "normal_high": null,
+   "normal_low": null,
+   "unit": "",
+   "plausible_max": null,
+   "type": "qualitative",
+   "expected": "Negative"
+  },
+  {
+   "aliases": [
+    "CRP",
+    "C Reactive Protein",
+    "C Reactive Protien",
+    "C-Reactive Protein"
+   ],
+   "critical_high": null,
+   "critical_low": null,
+   "key": "crp",
+   "measures_en": "a marker of swelling or infection inside the body",
+   "measures_ps": "د بدن دننه د پړسوب یا انتان یو نښه",
+   "measures_ur": "جسم کے اندر سوجن یا انفیکشن کا ایک نشان",
+   "name": "CRP (C Reactive Protein)",
+   "normal_high": null,
+   "normal_low": null,
+   "unit": "",
+   "plausible_max": null,
+   "type": "qualitative",
+   "expected": "Negative"
   }
  ],
  "note": "Reference ranges vary by laboratory, age and sex. These are common adult ranges for patient education only and MUST be replaced with the reporting lab's own ranges before any clinical use."

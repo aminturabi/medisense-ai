@@ -93,14 +93,39 @@ def _is_urine_report(text):
     low = text.lower()
     return "urine" in low and ("hpf" in low or "microscopic" in low or "pus cell" in low)
 
+def _collapse_dotted(text):
+    # Real Pakistani reports write abbreviations with dots: "T.L.C" for
+    # TLC, "S." etc. Collapse "T.L.C" / "T.L.C." to "TLC" so the plain
+    # alias matches. Only single letters separated by dots are touched -
+    # decimals (11.7), words (Tab.) and normal sentences are unchanged.
+    def _repl(m):
+        return m.group(0).replace(".", "")
+    return re.sub(r"\b(?:[A-Za-z]\.){1,}[A-Za-z]\b\.?|\b(?:[A-Za-z]\.){2,}", _repl, text)
+
 def parse_labs(text):
+    text = _collapse_dotted(text or "")
     found = []
     urine_ctx = _is_urine_report(text)
     for lab in LABS:
         if urine_ctx and lab["key"] in BLOOD_COUNT_KEYS:
             continue
+        if lab.get("type") == "qualitative":
+            # Qualitative tests report a word, not a number: Negative is
+            # the normal/good result, Positive is abnormal (NOT an
+            # emergency on its own - no panic alert is ever raised here).
+            for alias in lab["aliases"]:
+                pat = re.compile(r"\b" + re.escape(alias) + r"\s*(?:Count\s*)?[:\-]?\s*(Negative|Positive|Neg|Pos)\b\.?",
+                                 re.I)
+                m = pat.search(text)
+                if m:
+                    word = "Negative" if m.group(1).lower().startswith("neg") else "Positive"
+                    found.append({**lab, "value": word, "qualitative_value": word,
+                                  "status": "normal" if word == "Negative" else "high",
+                                  "suspect_decimal": False, "normal_text": "Negative"})
+                    break
+            continue
         for alias in lab["aliases"]:
-            pat = re.compile(re.escape(alias) + r"\s*[:\-]?\s*(\d[\d,]*\.?\d*)\s*(?:" + re.escape(lab["unit"]) + r")?",
+            pat = re.compile(r"\b" + re.escape(alias) + r"\s*(?:Count\s*)?[:\-]?\s*(\d[\d,]*\.?\d*)\s*(?:" + re.escape(lab["unit"]) + r")?",
                              re.I)
             m = pat.search(text)
             if m:
@@ -163,6 +188,13 @@ def parse_meds(text):
         raw_name, strength, unit, freq, days = m.group(1), float(m.group(2)), m.group(3).lower(), (m.group(4) or "").upper(), m.group(5)
         if raw_name.lower() in LAB_NAME_SET:
             continue  # a lab analyte line (e.g. "Hemoglobin 13.5 g/dL"), not a medicine
+        # Multi-word lab names: "Uric Acid 5.0 Mg/dl" would otherwise be
+        # misread as a medicine called "Acid" (Mg -> mg). If the text
+        # ending at this name is exactly a lab alias, it is a lab line.
+        name_end = m.end(1)
+        if any(len(a) >= len(raw_name) and text[name_end - len(a):name_end].lower() == a.lower()
+               for a in LAB_NAME_SET):
+            continue
         if raw_name.lower() in seen:
             continue
         seen.add(raw_name.lower())
@@ -257,6 +289,24 @@ def explain(meds, labs, unverified, alerts, lang):
                 lines.append(f'{lab["name"]}: پڑھی گئی قیمت {lab["value"]:g} {lab["unit"]} ہے - یہ پڑھنے کی غلطی لگتی ہے (عشاریہ چھوٹ گیا ہوگا، مثلاً {lab["value"] / 10:g})۔ براہ کرم چھپی ہوئی رپورٹ دیکھ کر اوپر والے متن میں نمبر درست کریں۔')
             else:
                 lines.append(f'{lab["name"]}: لوستل شوې بیه {lab["value"]:g} {lab["unit"]} ده - دا د لوستلو تېروتنه ښکاري (شاید عشاریه پاتې وي، لکه {lab["value"] / 10:g}). مهرباني وکړئ چاپ شوی راپور وګورئ او په پورته متن کې شمېره سمه کړئ۔')
+            continue
+        if lab.get("type") == "qualitative":
+            word = lab.get("qualitative_value") or lab["value"]
+            if lang == "en":
+                if word == "Negative":
+                    lines.append(f'{lab["name"]}: Your result is Negative. Normal is Negative. Result: Normal. This test checks {lab["measures_en"]}. Negative is good - this marker was not found.')
+                else:
+                    lines.append(f'{lab["name"]}: Your result is Positive. Normal is Negative. Result: Abnormal. This test checks {lab["measures_en"]}. Positive means this marker was found - please see your doctor to find the cause.')
+            elif lang == "ur":
+                if word == "Negative":
+                    lines.append(f'{lab["name"]}: آپ کا نتیجہ نیگیٹو (Negative) ہے۔ نارمل بھی نیگیٹو ہوتا ہے۔ نتیجہ: نارمل۔ یہ ٹیسٹ {lab["measures_ur"]} کو چیک کرتا ہے۔ نیگیٹو اچھا ہے - یہ نشان نہیں ملا۔')
+                else:
+                    lines.append(f'{lab["name"]}: آپ کا نتیجہ پازیٹو (Positive) ہے۔ نارمل نیگیٹو ہوتا ہے۔ نتیجہ: غیر نارمل۔ یہ ٹیسٹ {lab["measures_ur"]} کو چیک کرتا ہے۔ پازیٹو کا مطلب ہے یہ نشان ملا ہے - وجہ جاننے کے لیے اپنے ڈاکٹر سے ملیں۔')
+            else:
+                if word == "Negative":
+                    lines.append(f'{lab["name"]}: ستاسو پایله نیګیټیو (Negative) ده. نورمال هم نیګیټیو وي. پایله: نورمال. دا ټیسټ {lab["measures_ps"]} ګوري. نیګیټیو ښه دی - دا نښه ونه موندل شوه.')
+                else:
+                    lines.append(f'{lab["name"]}: ستاسو پایله پازیټیو (Positive) ده. نورمال نیګیټیو وي. پایله: غیر نورمال. دا ټیسټ {lab["measures_ps"]} ګوري. پازیټیو مطلب دا نښه موندل شوې - د سبب لپاره خپل ډاکټر ته لاړ شئ.')
             continue
         if lang == "en":
             lines.append(f'{lab["name"]}: Your result is {lab["value"]:g} {lab["unit"]}. Normal is {lab["normal_text"]}. Result: {status_word[lab["status"]]["en"]}. This test measures {lab["measures_en"]}.')

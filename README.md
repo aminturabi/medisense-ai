@@ -52,8 +52,11 @@ falls back to the JS engine automatically. Both engines are tested.
 
 ```bash
 python3 -m unittest discover -s tests -v
-# 12 tests: panic labs, overdose, severe interaction, unknown-drug
-# refusal, brand matching, PII redaction, 3-language completeness...
+# 25 tests: panic labs, overdose, severe interaction, unknown-drug
+# refusal, brand matching, PII redaction, 3-language completeness,
+# urine-report guard, decimal-drop checks, and a real-world report
+# regression (Hoti Medical Laboratory, Mardan - Complete Blood Picture
+# with differential counts, Uric Acid, and qualitative RA Factor / CRP)...
 ```
 
 ## Honest limits - read this before showing it to anyone
@@ -62,7 +65,14 @@ python3 -m unittest discover -s tests -v
   is unreliable; the verification gate is the safety net, and typed /
   printed reports are what this MVP is actually good at.
 - `data/` is a **sample educational dataset** (18 common medicines, 6
-  interaction rules, 14 lab analytes). A real deployment needs a
+  interaction rules, 22 lab analytes). Covered labs: Hemoglobin, WBC/TLC
+  (incl. dotted `T.L.C`), RBC (incl. `Red Count`), Platelets (incl.
+  `Platelets Count` and Indian comma values like `3,90,000`), Glucose,
+  HbA1c, Potassium, Sodium, Creatinine, Urea, ALT, Bilirubin, Calcium,
+  Cholesterol, Uric Acid, the differential counts (Neutrophils,
+  Lymphocytes, Monocytes, Eosinophils, Basophils), and the qualitative
+  tests RA Factor and CRP (Negative = normal, Positive = abnormal, never
+  an emergency on its own). A real deployment needs a
   pharmacist-verified drug database and the reporting lab's own ranges.
 - The dose check ignores age, weight, kidney/liver function and other
   conditions. It is a warning layer, not a clinical decision.

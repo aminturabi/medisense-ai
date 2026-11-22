@@ -44,13 +44,23 @@ function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
 
 const BLOOD_COUNT_KEYS=new Set(["hemoglobin","wbc","platelets","rbc"]);
 function isUrineReport(text){const low=text.toLowerCase();return low.includes("urine")&&(low.includes("hpf")||low.includes("microscopic")||low.includes("pus cell"));}
+function collapseDotted(text){return text.replace(/\b(?:[A-Za-z]\.){1,}[A-Za-z]\b\.?|\b(?:[A-Za-z]\.){2,}/g,m=>m.replace(/\./g,""));}
 function parseLabs(text,D){
   const out=[];
+  text=collapseDotted(text||"");
   const urineCtx=isUrineReport(text);
   for(const lab of D.labs){
     if(urineCtx&&BLOOD_COUNT_KEYS.has(lab.key))continue;
+    if(lab.type==="qualitative"){
+      for(const alias of lab.aliases){
+        const m=text.match(new RegExp("\\b"+escRe(alias)+"\\s*(?:Count\\s*)?[:\\-]?\\s*(Negative|Positive|Neg|Pos)\\b\\.?","i"));
+        if(m){
+          const word=m[1].toLowerCase().startsWith("neg")?"Negative":"Positive";
+          out.push({...lab,value:word,qualitative_value:word,status:word==="Negative"?"normal":"high",suspect_decimal:false,normal_text:"Negative"});
+          break;}}
+      continue;}
     for(const alias of lab.aliases){
-      const m=text.match(new RegExp(escRe(alias)+"\\s*[:\\-]?\\s*(\\d[\\d,]*\\.?\\d*)","i"));
+      const m=text.match(new RegExp("\\b"+escRe(alias)+"\\s*(?:Count\\s*)?[:\\-]?\\s*(\\d[\\d,]*\\.?\\d*)","i"));
       if(m){
         const rest=text.slice(m.index+m[0].length,m.index+m[0].length+10);
         if(/^\s*[-\u2013]\s*\d/.test(rest)||/hpf/i.test(rest))break;
@@ -71,11 +81,17 @@ function parseLabs(text,D){
 
 function parseMeds(text,D){
   const meds=[],unverified=[],seen=new Set();
-  const re=/(?:Tab\.?|Cap\.?|Syp\.?|Tablet|Capsule)?\s*([A-Z][A-Za-z\-+]{2,30})\s+(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)\b(?:[^A-Za-z0-9]{0,6}(OD|BD|BID|TDS|TID|QID|HS|SOS|PRN))?(?:[^0-9]{0,20}?(\d+)\s*(?:days?))?/gi;
+  const re=/(?:Tab\.?|Cap\.?|Syp\.?|Tablet|Capsule)?\s*([A-Z][A-Za-z\-+]{2,30})\s+(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)\b(?:[^A-Za-z0-9]{0,6}(OD|BD|BID|TDS|TID|QID|HS|SOS|PRN))?(?:[^0-9]{0,20}?(\d+)\s*(?:days?))?/gid;
   let m;
   while((m=re.exec(text))!==null){
-    const raw=m[1],key=raw.toLowerCase(); if(seen.has(key))continue; seen.add(key);
+    const raw=m[1],key=raw.toLowerCase(); if(seen.has(key))continue;
     if(D.labs.some(l=>l.aliases.some(a=>a.toLowerCase()===key)))continue; // lab analyte line, not a medicine
+    // Multi-word lab names: "Uric Acid 5.0 Mg/dl" would otherwise be a
+    // medicine called "Acid" (Mg -> mg). If the text ending at this name
+    // is exactly a lab alias, it is a lab line.
+    const nameEnd=(m.indices&&m.indices[1])?m.indices[1][1]:m.index+m[0].indexOf(raw)+raw.length;
+    if(D.labs.some(l=>l.aliases.some(a=>a.length>=raw.length&&text.slice(nameEnd-a.length,nameEnd).toLowerCase()===a.toLowerCase())))continue;
+    seen.add(key);
     const strength=parseFloat(m[2]),unit=m[3].toLowerCase(),freq=(m[4]||"").toUpperCase(),days=m[5]?parseInt(m[5]):null;
     let best=null,score=0;
     for(const d of D.drugs)for(const c of [d.generic,...d.brands]){const r=ratio(raw,c);if(r>score){best=d;score=r;}}
@@ -129,6 +145,12 @@ function explain(meds,labs,unverified,alerts,lang){
       if(lang==="en")lines.push(`${lab.name}: The value read was ${lab.value} ${lab.unit} - this looks like a reading mistake (a decimal point may be missing, for example ${lab.value/10}). Please check the printed report and fix the number in the text above.`);
       else if(lang==="ur")lines.push(`${lab.name}: پڑھی گئی قیمت ${lab.value} ${lab.unit} ہے - یہ پڑھنے کی غلطی لگتی ہے (عشاریہ چھوٹ گیا ہوگا، مثلاً ${lab.value/10})۔ براہ کرم چھپی ہوئی رپورٹ دیکھ کر اوپر والے متن میں نمبر درست کریں۔`);
       else lines.push(`${lab.name}: لوستل شوې بیه ${lab.value} ${lab.unit} ده - دا د لوستلو تېروتنه ښکاري (شاید عشاریه پاتې وي، لکه ${lab.value/10}). مهرباني وکړئ چاپ شوی راپور وګورئ او په پورته متن کې شمېره سمه کړئ۔`);
+      continue;}
+    if(lab.type==="qualitative"){
+      const word=lab.qualitative_value||lab.value;
+      if(lang==="en")lines.push(word==="Negative"?`${lab.name}: Your result is Negative. Normal is Negative. Result: Normal. This test checks ${lab.measures_en}. Negative is good - this marker was not found.`:`${lab.name}: Your result is Positive. Normal is Negative. Result: Abnormal. This test checks ${lab.measures_en}. Positive means this marker was found - please see your doctor to find the cause.`);
+      else if(lang==="ur")lines.push(word==="Negative"?`${lab.name}: آپ کا نتیجہ نیگیٹو (Negative) ہے۔ نارمل بھی نیگیٹو ہوتا ہے۔ نتیجہ: نارمل۔ یہ ٹیسٹ ${lab.measures_ur} کو چیک کرتا ہے۔ نیگیٹو اچھا ہے - یہ نشان نہیں ملا۔`:`${lab.name}: آپ کا نتیجہ پازیٹو (Positive) ہے۔ نارمل نیگیٹو ہوتا ہے۔ نتیجہ: غیر نارمل۔ یہ ٹیسٹ ${lab.measures_ur} کو چیک کرتا ہے۔ پازیٹو کا مطلب ہے یہ نشان ملا ہے - وجہ جاننے کے لیے اپنے ڈاکٹر سے ملیں۔`);
+      else lines.push(word==="Negative"?`${lab.name}: ستاسو پایله نیګیټیو (Negative) ده. نورمال هم نیګیټیو وي. پایله: نورمال. دا ټیسټ ${lab.measures_ps} ګوري. نیګیټیو ښه دی - دا نښه ونه موندل شوه.`:`${lab.name}: ستاسو پایله پازیټیو (Positive) ده. نورمال نیګیټیو وي. پایله: غیر نورمال. دا ټیسټ ${lab.measures_ps} ګوري. پازیټیو مطلب دا نښه موندل شوې - د سبب لپاره خپل ډاکټر ته لاړ شئ.`);
       continue;}
     if(lang==="en")lines.push(`${lab.name}: Your result is ${lab.value} ${lab.unit}. Normal is ${lab.normal_text}. Result: ${SW[lab.status].en}. This test measures ${lab.measures_en}.`);
     else if(lang==="ur")lines.push(`${lab.name}: آپ کا نتیجہ ${lab.value} ${lab.unit} ہے۔ نارمل حد ${lab.normal_text} ہے۔ نتیجہ: ${SW[lab.status].ur}۔ یہ ٹیسٹ ${lab.measures_ur} کو ناپتا ہے۔`);

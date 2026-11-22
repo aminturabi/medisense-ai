@@ -151,3 +151,98 @@ class TestUrineReportGuard(unittest.TestCase):
         self.assertEqual(en.count("does not replace your doctor"), 1)
         em = analyze("Hemoglobin 6.4 g/dL\nPotassium 6.9 mmol/L")
         self.assertNotIn("could not find", " ".join(em["explanations"]["en"]))
+
+
+HOTI_PAGE1 = """HOTI MEDICAL LABORATORY
+Pat: Name : M/O Amin
+Sex : Female
+Specimen Date : 22-Nov-26
+Report Date : 11/22/2026 6:55 PM
+Test Result Unit Normal Range
+RA Factor Negative Iu/ml Up to 8
+S, Uric Acid 5.0 Mg/dl 2.5-----7.0
+C Reactive Protien
+Test Result
+CRP Negative"""
+
+HOTI_PAGE2 = """HOTI MEDICAL LABORATORY
+Pat: Name : M/O Amin
+Sex : Female
+Specimen Date : 22-Nov-26
+Report Date : 11/22/2026 6:51 PM
+Complete Blood Picture
+Test Result Unit Normal Range
+T.L.C 9,400 / cmm 4,000 - 11,000
+Red Count 4.44 mil / mm3 3.80 - 5.80
+Hemoglobin 11.7 g / dl Male: 14-----18 Female 12----16
+Platelets Count 3,90,000 /cmm 1,50,000 - 4,50,000
+Differential Leucocytes Count
+Lymphocytes 34 % 20------50
+Monocytes 04 % 03------10
+Neutrophils 61 % 40------70
+Eosinophils 01 % 0 ------6"""
+
+
+class TestRealWorldHotiReport(unittest.TestCase):
+    """Real report regression - Hoti Medical Laboratory, Mardan,
+    22-Nov-2026 (patient M/O Amin, Female). This exact report failed
+    completely before the real-world parser fix."""
+
+    def test_all_eleven_tests_found(self):
+        r = analyze(HOTI_PAGE1 + "\n" + HOTI_PAGE2)
+        self.assertEqual(len(r["lab_results"]), 11)
+        names = {l["name"] for l in r["lab_results"]}
+        for expected in ("Hemoglobin", "WBC (White Blood Cells)", "Platelets",
+                         "RBC (Red Blood Cells)", "Uric Acid", "Neutrophils",
+                         "Lymphocytes", "Monocytes", "Eosinophils",
+                         "RA Factor", "CRP (C Reactive Protein)"):
+            self.assertIn(expected, names)
+
+    def test_hoti_statuses_and_values(self):
+        r = analyze(HOTI_PAGE1 + "\n" + HOTI_PAGE2)
+        by_name = {l["name"]: l for l in r["lab_results"]}
+        self.assertEqual(by_name["WBC (White Blood Cells)"]["value"], 9400)
+        self.assertEqual(by_name["RBC (Red Blood Cells)"]["value"], 4.44)
+        self.assertEqual(by_name["Platelets"]["value"], 390000)  # 3,90,000 Indian commas
+        self.assertEqual(by_name["Uric Acid"]["value"], 5.0)
+        self.assertEqual(by_name["Lymphocytes"]["value"], 34)
+        self.assertEqual(by_name["Monocytes"]["value"], 4)   # printed as 04
+        self.assertEqual(by_name["Neutrophils"]["value"], 61)
+        self.assertEqual(by_name["Eosinophils"]["value"], 1)  # printed as 01
+        self.assertEqual(by_name["RA Factor"]["value"], "Negative")
+        self.assertEqual(by_name["CRP (C Reactive Protein)"]["value"], "Negative")
+        # Everything normal except Hemoglobin, which is Low (11.7 < 12)
+        for name, lab in by_name.items():
+            expected = "low" if name == "Hemoglobin" else "normal"
+            self.assertEqual(lab["status"], expected, name)
+        self.assertEqual(by_name["Hemoglobin"]["value"], 11.7)
+
+    def test_hoti_no_emergency_and_no_fake_medicine(self):
+        r = analyze(HOTI_PAGE1 + "\n" + HOTI_PAGE2)
+        self.assertFalse(r["emergency"])
+        self.assertEqual(r["alerts"], [])
+        # "Uric Acid 5.0 Mg/dl" must not become a medicine called "Acid"
+        self.assertEqual(r["medications"], [])
+        self.assertEqual(r["unverified_items"], [])
+
+    def test_hoti_explanations_in_all_languages(self):
+        r = analyze(HOTI_PAGE1 + "\n" + HOTI_PAGE2)
+        for lang in ("en", "ur", "ps"):
+            blob = " ".join(r["explanations"][lang])
+            self.assertIn("RA Factor", blob)
+            self.assertIn("CRP", blob)
+            self.assertNotIn("URGENT", blob)
+
+    def test_positive_qualitative_is_abnormal_not_emergency(self):
+        r = analyze("CRP Positive\nRA Factor Positive")
+        by_name = {l["name"]: l for l in r["lab_results"]}
+        self.assertEqual(by_name["CRP (C Reactive Protein)"]["status"], "high")
+        self.assertEqual(by_name["RA Factor"]["status"], "high")
+        self.assertFalse(r["emergency"])
+        self.assertIn("Positive", " ".join(r["explanations"]["en"]))
+
+    def test_basophils_parse(self):
+        r = analyze("Basophils 01 %")
+        self.assertEqual(r["lab_results"][0]["name"], "Basophils")
+        self.assertEqual(r["lab_results"][0]["value"], 1)
+        self.assertEqual(r["lab_results"][0]["status"], "normal")
