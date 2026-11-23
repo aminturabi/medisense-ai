@@ -18,8 +18,11 @@
   <section class="card">
     <h2>1. Add your prescription or lab report</h2>
     <div class="row">
-      <label class="btn file-btn">📷 Upload photo - camera or gallery
-        <input type="file" id="photo" accept="image/*" hidden>
+      <label class="btn file-btn">📷 Take photo
+        <input type="file" id="photo" accept="image/*" capture="environment" hidden>
+      </label>
+      <label class="btn file-btn">🖼️ Choose from gallery
+        <input type="file" id="photoGallery" accept="image/*" hidden>
       </label>
       <button class="btn ghost" id="sampleRx">Try a sample prescription</button>
       <button class="btn ghost" id="sampleLab">Try a sample lab report</button>
@@ -46,6 +49,11 @@
       <div id="labList"></div>
     </div>
 
+    <div class="card" id="mlCard" hidden>
+      <h2>🤖 AI estimate - HbA1c (3-month sugar)</h2>
+      <div id="mlBody"></div>
+    </div>
+
     <div class="card" id="unverifiedCard" hidden>
       <h2>❓ Could not be verified</h2>
       <div id="unverifiedList"></div>
@@ -67,6 +75,7 @@
 
 </main>
 <script src="data.js"></script>
+<script src="model.js"></script>
 <script src="engine.js"></script>
 <script src="app.js"></script>
 </body>

@@ -126,7 +126,7 @@ function safetyChecks(meds,labs,D){
         message_ps:`${lab.name} ${lab.value} ${lab.unit} لوستل شوی - دا د انسان په بدن کې له ممکن حد څخه ډېر دی، نو شاید عشاریه (decimal point) پاتې شوې وي (ایا مطلب یې ${lab.value/10} و؟). مهرباني وکړئ دا شمېره په پورته متن کې وګورئ او سمه یې کړئ. د دې لپاره کوم بیړنی خبرتیا نه ده ورکړل شوې۔`});}
   return alerts;}
 
-function explain(meds,labs,unverified,alerts,lang){
+function explain(meds,labs,unverified,alerts,lang,ml){
   const lines=[];
   if(alerts.some(a=>a.severity==="emergency"))lines.push(EMERGENCY[lang]);
   for(const a of alerts)if(a.severity!=="emergency"&&a["message_"+lang])lines.push("⚠ "+a["message_"+lang]);
@@ -155,19 +155,57 @@ function explain(meds,labs,unverified,alerts,lang){
     if(lang==="en")lines.push(`${lab.name}: Your result is ${lab.value} ${lab.unit}. Normal is ${lab.normal_text}. Result: ${SW[lab.status].en}. This test measures ${lab.measures_en}.`);
     else if(lang==="ur")lines.push(`${lab.name}: آپ کا نتیجہ ${lab.value} ${lab.unit} ہے۔ نارمل حد ${lab.normal_text} ہے۔ نتیجہ: ${SW[lab.status].ur}۔ یہ ٹیسٹ ${lab.measures_ur} کو ناپتا ہے۔`);
     else lines.push(`${lab.name}: ستاسو پایله ${lab.value} ${lab.unit} ده. نورمال حد ${lab.normal_text} دی. پایله: ${SW[lab.status].ps}۔ دا ټیسټ ${lab.measures_ps} اندازه کوي۔`);}
+  if(ml)lines.push(mlLine(ml,lang));
   for(const u of unverified)lines.push(`${u.raw_name} ${u.strength} ${u.unit}: ${UNVERIFIED[lang]}`);
   if(!meds.length&&!labs.length&&!unverified.length&&!alerts.length)lines.push(NOT_FOUND[lang]);
   lines.push(DISCLAIMER[lang]);
   return lines;}
 
+// ML screening estimate - mirrors medisense/engine.py. Logistic
+// regression trained on CDC NHANES 2021-2023 adults (70/30 split,
+// held-out accuracy 70.5%, AUC 0.803). Estimates the HbA1c class ONLY
+// when the report has no HbA1c of its own, never during an emergency,
+// and never changes any rule-based result.
+const ML_MIN_FEATURES=8,ML_MIN_CONFIDENCE=0.45;
+const ML_CLASS_EN={Normal:"Normal",Prediabetes:"Prediabetes","Diabetes range":"Diabetes"};
+const ML_CLASS_UR={Normal:"نارمل",Prediabetes:"پری ذیابیطس (شوگر سے پہلے والی)","Diabetes range":"ذیابیطس (شوگر) کی"};
+const ML_CLASS_PS={Normal:"نورمال",Prediabetes:"پری ذیابیطس (له شوګر مخکې)","Diabetes range":"د ذیابیطس (شوګر)"};
+function mlEstimate(labs,emergency){
+  const M=window.MEDISENSE_MODEL;
+  if(!M||emergency)return null;
+  if(labs.some(l=>l.key==="hba1c"))return null;
+  const values={};
+  for(const l of labs){
+    if(l.type==="qualitative"||l.suspect_decimal)continue;
+    if(typeof l.value==="number")values[l.key]=l.value;}
+  const present=M.features.filter(f=>f in values);
+  if(present.length<ML_MIN_FEATURES)return null;
+  const z=M.features.map(f=>{const v=(f in values)?values[f]:M.impute_medians[f];
+    return (v-M.scaler_mean[f])/M.scaler_scale[f];});
+  const logits=M.coef.map((row,i)=>row.reduce((s,c,j)=>s+c*z[j],0)+M.intercept[i]);
+  const mx=Math.max(...logits),exps=logits.map(x=>Math.exp(x-mx)),tot=exps.reduce((a,b)=>a+b,0);
+  const probs=exps.map(e=>e/tot);
+  let best=0;for(let i=1;i<probs.length;i++)if(probs[i]>probs[best])best=i;
+  if(probs[best]<ML_MIN_CONFIDENCE)return null;
+  const probabilities={};M.classes.forEach((c,i)=>probabilities[c]=Math.round(probs[i]*1000)/10);
+  return {predicted_class:M.classes[best],probabilities,features_used:present.length,n_train:M.n_train};}
+function mlLine(ml,lang){
+  const cls=ml.predicted_class,pct=Math.round(ml.probabilities[cls]);
+  if(lang==="en")return `AI estimate: Your report does not include HbA1c (the 3-month sugar test). From your other results, an AI model trained on ${ml.n_train} adults in the CDC NHANES health survey estimates your HbA1c is most likely in the ${ML_CLASS_EN[cls]} range (${pct}%). This is only an estimate, NOT a test result - please take a real HbA1c test to know for sure.`;
+  if(lang==="ur")return `اے آئی تخمینہ: آپ کی رپورٹ میں HbA1c (تین ماہ کی شوگر کا ٹیسٹ) شامل نہیں ہے۔ آپ کے دیگر نتائج سے، ایک اے آئی ماڈل - جو CDC کے NHANES سروے کے ${ml.n_train} بالغ افراد پر تربیت یافتہ ہے - اندازہ لگاتا ہے کہ آپ کا HbA1c غالباً ${ML_CLASS_UR[cls]} حد میں ہے (${pct}٪)۔ یہ صرف ایک اندازہ ہے، ٹیسٹ کا نتیجہ نہیں - یقینی جاننے کے لیے اصل HbA1c ٹیسٹ کروائیں۔`;
+  return `د اے آی اټکل: ستاسو په راپور کې HbA1c (د درې میاشتو د شوګر ټیسټ) نشته. ستاسو له نورو پایلو څخه، یو اے آی ماډل - چې د CDC د NHANES سروې په ${ml.n_train} لویانو روزل شوی - اټکل کوي چې ستاسو HbA1c غالباً د ${ML_CLASS_PS[cls]} په حد کې دی (${pct}٪). دا یوازې اټکل دی، د ټیسټ پایله نه ده - د ډاډ لپاره اصلي HbA1c ټیسټ وکړئ.`;}
+
 function analyzeLocal(raw){
   const D=window.MEDISENSE_DATA,text=redact(raw||"");
   const labs=parseLabs(text,D),[meds,unverified]=parseMeds(text,D);
   const alerts=safetyChecks(meds,labs,D);
+  const emergency=alerts.some(a=>a.severity==="emergency");
+  const ml=mlEstimate(labs,emergency);
   return {medications:meds,
-    lab_results:labs.map(l=>({name:l.name,value:l.value,unit:l.unit,status:l.status,normal_text:l.normal_text,suspect_decimal:!!l.suspect_decimal})),
+    lab_results:labs.map(l=>({key:l.key,name:l.name,value:l.value,unit:l.unit,status:l.status,normal_text:l.normal_text,suspect_decimal:!!l.suspect_decimal})),
     unverified_items:unverified,alerts,
-    emergency:alerts.some(a=>a.severity==="emergency"),
+    emergency,
+    ml_estimate:ml,
     requires_pharmacist_verification:unverified.length>0,
-    explanations:{en:explain(meds,labs,unverified,alerts,"en"),ur:explain(meds,labs,unverified,alerts,"ur"),ps:explain(meds,labs,unverified,alerts,"ps")}};
+    explanations:{en:explain(meds,labs,unverified,alerts,"en",ml),ur:explain(meds,labs,unverified,alerts,"ur",ml),ps:explain(meds,labs,unverified,alerts,"ps",ml)}};
 }

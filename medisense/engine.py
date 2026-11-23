@@ -66,6 +66,79 @@ def load_data():
 
 LABS, DRUGS, INTERACTIONS = load_data()
 
+# ---------- ML screening estimate (NHANES-trained) ----------
+# A multinomial logistic-regression model trained on CDC NHANES
+# 2021-2023 adults (70% train / 30% test; held-out accuracy 70.5%,
+# macro AUC 0.803). It estimates the HbA1c class ONLY when the report
+# has no HbA1c result of its own, and never during an emergency. It
+# never changes any rule-based result and is always labelled as an
+# estimate, not a test result. Inference is plain arithmetic on the
+# exported coefficients - no ML library needed at runtime.
+def _load_ml_model():
+    try:
+        return json.loads((DATA / "ml_model.json").read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+ML_MODEL = _load_ml_model()
+ML_MIN_FEATURES = 8
+ML_MIN_CONFIDENCE = 0.45
+ML_CLASS_EN = {"Normal": "Normal", "Prediabetes": "Prediabetes", "Diabetes range": "Diabetes"}
+ML_CLASS_UR = {"Normal": "نارمل", "Prediabetes": "پری ذیابیطس (شوگر سے پہلے والی)", "Diabetes range": "ذیابیطس (شوگر) کی"}
+ML_CLASS_PS = {"Normal": "نورمال", "Prediabetes": "پری ذیابیطس (له شوګر مخکې)", "Diabetes range": "د ذیابیطس (شوګر)"}
+
+def ml_estimate(labs, emergency):
+    import math
+    if ML_MODEL is None or emergency:
+        return None
+    if any(lab["key"] == "hba1c" for lab in labs):
+        return None
+    values = {}
+    for lab in labs:
+        if lab.get("type") == "qualitative" or lab.get("suspect_decimal"):
+            continue
+        if isinstance(lab.get("value"), (int, float)):
+            values[lab["key"]] = float(lab["value"])
+    feats = ML_MODEL["features"]
+    present = [f for f in feats if f in values]
+    if len(present) < ML_MIN_FEATURES:
+        return None
+    z = [(values.get(f, ML_MODEL["impute_medians"][f]) - ML_MODEL["scaler_mean"][f]) / ML_MODEL["scaler_scale"][f]
+         for f in feats]
+    logits = [sum(c * x for c, x in zip(row, z)) + b
+              for row, b in zip(ML_MODEL["coef"], ML_MODEL["intercept"])]
+    mx = max(logits)
+    exps = [math.exp(x - mx) for x in logits]
+    total = sum(exps)
+    probs = [e / total for e in exps]
+    best = max(range(len(probs)), key=lambda i: probs[i])
+    if probs[best] < ML_MIN_CONFIDENCE:
+        return None
+    return {
+        "predicted_class": ML_MODEL["classes"][best],
+        "probabilities": {c: round(p * 100, 1) for c, p in zip(ML_MODEL["classes"], probs)},
+        "features_used": len(present),
+        "n_train": ML_MODEL["n_train"],
+    }
+
+def ml_line(ml, lang):
+    cls = ml["predicted_class"]
+    pct = round(ml["probabilities"][cls])
+    if lang == "en":
+        return (f"AI estimate: Your report does not include HbA1c (the 3-month sugar test). "
+                f"From your other results, an AI model trained on {ml['n_train']} adults in the CDC NHANES "
+                f"health survey estimates your HbA1c is most likely in the {ML_CLASS_EN[cls]} range ({pct}%). "
+                f"This is only an estimate, NOT a test result - please take a real HbA1c test to know for sure.")
+    if lang == "ur":
+        return (f"اے آئی تخمینہ: آپ کی رپورٹ میں HbA1c (تین ماہ کی شوگر کا ٹیسٹ) شامل نہیں ہے۔ "
+                f"آپ کے دیگر نتائج سے، ایک اے آئی ماڈل - جو CDC کے NHANES سروے کے {ml['n_train']} بالغ افراد پر تربیت یافتہ ہے - "
+                f"اندازہ لگاتا ہے کہ آپ کا HbA1c غالباً {ML_CLASS_UR[cls]} حد میں ہے ({pct}٪)۔ "
+                f"یہ صرف ایک اندازہ ہے، ٹیسٹ کا نتیجہ نہیں - یقینی جاننے کے لیے اصل HbA1c ٹیسٹ کروائیں۔")
+    return (f"د اے آی اټکل: ستاسو په راپور کې HbA1c (د درې میاشتو د شوګر ټیسټ) نشته. "
+            f"ستاسو له نورو پایلو څخه، یو اے آی ماډل - چې د CDC د NHANES سروې په {ml['n_train']} لویانو روزل شوی - "
+            f"اټکل کوي چې ستاسو HbA1c غالباً د {ML_CLASS_PS[cls]} په حد کې دی ({pct}٪). "
+            f"دا یوازې اټکل دی، د ټیسټ پایله نه ده - د ډاډ لپاره اصلي HbA1c ټیسټ وکړئ.")
+
 # ---------- PII redaction ----------
 PII_PATTERNS = [
     (re.compile(r"\b\d{5}-\d{7}-\d\b"), "[CNIC HIDDEN]"),                 # Pakistani CNIC
@@ -247,7 +320,7 @@ def safety_checks(meds, labs):
 def _join_times(times):
     return ", ".join(times[:-1]) + (" and " if len(times) > 1 else "") + times[-1] if times else ""
 
-def explain(meds, labs, unverified, alerts, lang):
+def explain(meds, labs, unverified, alerts, lang, ml=None):
     lines = []
     emergency = any(a["severity"] == "emergency" for a in alerts)
     if emergency:
@@ -314,6 +387,8 @@ def explain(meds, labs, unverified, alerts, lang):
             lines.append(f'{lab["name"]}: آپ کا نتیجہ {lab["value"]:g} {lab["unit"]} ہے۔ نارمل حد {lab["normal_text"]} ہے۔ نتیجہ: {status_word[lab["status"]]["ur"]}۔ یہ ٹیسٹ {lab["measures_ur"]} کو ناپتا ہے۔')
         else:
             lines.append(f'{lab["name"]}: ستاسو پایله {lab["value"]:g} {lab["unit"]} ده. نورمال حد {lab["normal_text"]} دی. پایله: {status_word[lab["status"]]["ps"]}۔ دا ټیسټ {lab["measures_ps"]} اندازه کوي۔')
+    if ml:
+        lines.append(ml_line(ml, lang))
     for u in unverified:
         lines.append(f'{u["raw_name"]} {u["strength"]:g} {u["unit"]}: ' + UNVERIFIED[lang])
     if not meds and not labs and not unverified and not alerts:
@@ -329,14 +404,17 @@ def analyze(raw_text):
     labs = parse_labs(text)
     meds, unverified = parse_meds(text)
     alerts = safety_checks(meds, labs)
+    emergency = any(a["severity"] == "emergency" for a in alerts)
+    ml = ml_estimate(labs, emergency)
     result = {
         "medications": meds,
         "lab_results": [{k: lab[k] for k in ("name", "value", "unit", "status", "normal_text", "suspect_decimal")} for lab in labs],
         "unverified_items": unverified,
         "alerts": alerts,
-        "emergency": any(a["severity"] == "emergency" for a in alerts),
+        "emergency": emergency,
+        "ml_estimate": ml,
         "requires_pharmacist_verification": bool(unverified),
-        "explanations": {lang: explain(meds, labs, unverified, alerts, lang) for lang in ("en", "ur", "ps")},
+        "explanations": {lang: explain(meds, labs, unverified, alerts, lang, ml) for lang in ("en", "ur", "ps")},
         "disclaimer": DISCLAIMER,
     }
     return result

@@ -12,7 +12,10 @@ $("#sampleEmergency").onclick = () => { $("#inputText").value = SAMPLES.emergenc
 $("#analyzeBtn").onclick = run;
 
 // --- Photo: blur check (Laplacian variance on a small canvas) + Tesseract.js OCR (printed text) ---
-$("#photo").onchange = async e => {
+// Two separate buttons (Take photo / Choose from gallery) share one handler:
+// a single accept="image/*" input let some Android phones jump straight to
+// the camera with no gallery choice, which Amin reported on 2026-11-12.
+async function handlePhotoFile(e) {
   const file = e.target.files[0]; if (!file) return;
   ocrBusy = true;
   $("#analyzeBtn").textContent = "⏳ Reading your photo… please wait";
@@ -59,7 +62,9 @@ $("#photo").onchange = async e => {
     ocrBusy = false; $("#analyzeBtn").textContent = "Explain it simply →";
     $("#photoStatus").textContent = "Photo reading failed (needs internet the first time). Please type or paste the report text instead.";
   }
-};
+}
+$("#photo").onchange = handlePhotoFile;
+$("#photoGallery").onchange = handlePhotoFile;
 
 // OCR works far better on a big, clean black-on-white image than on a raw
 // phone photo: upscale small images, convert to grey, then binarize (Otsu).
@@ -145,6 +150,7 @@ function showNotice(msg) {
   $("#alertsBox").innerHTML = "";
   $("#medCard").hidden = true;
   $("#labCard").hidden = true;
+  $("#mlCard").hidden = true;
   $("#unverifiedCard").hidden = true;
   const box = $("#explanation");
   box.textContent = msg;
@@ -196,6 +202,17 @@ function render() {
   $("#labList").innerHTML = current.lab_results.map(l => `
     <div class="lab"><div><b>${l.name}</b><br><small>Normal: ${l.normal_text}</small></div>
     <div><b>${l.value} ${l.unit}</b></div><span class="pill ${l.status}">${STATUS_LABEL[l.status]}</span></div>`).join("");
+  const ml = current.ml_estimate;
+  $("#mlCard").hidden = !ml;
+  if (ml) {
+    const bars = Object.entries(ml.probabilities).map(([c, p]) => `
+      <div class="mlrow"><span>${c}</span><div class="mlbar"><div style="width:${p}%"></div></div><b>${Math.round(p)}%</b></div>`).join("");
+    $("#mlBody").innerHTML = `
+      <p>Your report has no HbA1c result. From your other ${ml.features_used} results, our AI model - trained on ${ml.n_train.toLocaleString()} adults in the CDC NHANES health survey - estimates:</p>
+      <p class="mlbig">Most likely: ${ml.predicted_class} (${Math.round(ml.probabilities[ml.predicted_class])}%)</p>
+      ${bars}
+      <p><b>This is an estimate, not a test result.</b> Please take a real HbA1c test to know for sure.</p>`;
+  }
   $("#unverifiedCard").hidden = !current.unverified_items.length;
   $("#unverifiedList").innerHTML = current.unverified_items
     .map(u => `<div class="unv"><b>${u.raw_name} ${u.strength} ${u.unit}</b> - could not be verified automatically.</div>`).join("");

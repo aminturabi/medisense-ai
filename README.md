@@ -47,12 +47,23 @@ falls back to the JS engine automatically. Both engines are tested.
    guesses. Dose times are shown as icons (🌅 ☀️ 🌙).
 5. **Listen button** - the browser reads the explanation aloud
    (ur-PK / ps-AF / en-US voices, device permitting).
+6. **ML screening estimate (trained model)** - if a report has no
+   HbA1c result, a multinomial logistic-regression model trained on
+   CDC NHANES 2021-2023 lab data (6,002 adults; 70% train / 30% test;
+   held-out accuracy 70.5%, macro AUC 0.803) estimates the HbA1c
+   class - Normal / Prediabetes / Diabetes range - from the other
+   results, with probabilities shown. Guardrails: it appears only
+   when at least 8 of its 18 inputs are present and the model is at
+   least 45% confident, never during an emergency, and it is always
+   labelled "AI estimate - NOT a test result". It never changes any
+   rule-based result above. Training pipeline + evaluation report:
+   the `ml/` folder of this repo.
 
 ## Tests
 
 ```bash
 python3 -m unittest discover -s tests -v
-# 25 tests: panic labs, overdose, severe interaction, unknown-drug
+# 30 tests: panic labs, overdose, severe interaction, unknown-drug
 # refusal, brand matching, PII redaction, 3-language completeness,
 # urine-report guard, decimal-drop checks, and a real-world report
 # regression (Hoti Medical Laboratory, Mardan - Complete Blood Picture
