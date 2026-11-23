@@ -1,15 +1,16 @@
 const $ = s => document.querySelector(s);
-let current = null, lang = "en", ocrBusy = false;
+let current = null, lang = "en", ocrBusy = false, lastInputFromPhoto = false;
 
 const SAMPLES = {
   rx: "Dr. Ahmed Khan, City Clinic\nPatient: Test, CNIC 35202-1234567-1, 0300-1234567\n\nTab. Augmentin 625 mg BD x 5 days\nTab. Panadol 500 mg TDS x 3 days\nCap. Risek 20 mg OD x 14 days",
   lab: "City Lab - Blood Report\nHemoglobin 11.2 g/dL\nWBC 8500 /uL\nPlatelets 230000 /uL\nGlucose 182 mg/dL\nPotassium 4.3 mmol/L\nCreatinine 0.9 mg/dL",
   emergency: "City Lab - Emergency Panel\nHemoglobin 6.4 g/dL\nPotassium 6.9 mmol/L\nGlucose 92 mg/dL\nSodium 138 mmol/L\n\nTab. Disprin 75 mg OD\nTab. Warfarin 5 mg OD"
 };
-$("#sampleRx").onclick = () => { $("#inputText").value = SAMPLES.rx; run(); };
-$("#sampleLab").onclick = () => { $("#inputText").value = SAMPLES.lab; run(); };
-$("#sampleEmergency").onclick = () => { $("#inputText").value = SAMPLES.emergency; run(); };
+$("#sampleRx").onclick = () => { lastInputFromPhoto = false; $("#inputText").value = SAMPLES.rx; run(); };
+$("#sampleLab").onclick = () => { lastInputFromPhoto = false; $("#inputText").value = SAMPLES.lab; run(); };
+$("#sampleEmergency").onclick = () => { lastInputFromPhoto = false; $("#inputText").value = SAMPLES.emergency; run(); };
 $("#analyzeBtn").onclick = run;
+$("#inputText").addEventListener("input", () => { lastInputFromPhoto = false; });
 
 // --- Photo: blur check (Laplacian variance on a small canvas) + Tesseract.js OCR (printed text) ---
 // Two separate buttons (Take photo / Choose from gallery) share one handler:
@@ -53,6 +54,7 @@ async function handlePhotoFile(e) {
     // itself, so the review box never shows the real numbers.
     const safeText = redact(rawText);
     $("#inputText").value = safeText;
+    lastInputFromPhoto = true;
     $("#photoStatus").textContent = "Text read from the photo." +
       (safeText !== rawText ? " Phone / CNIC numbers have been hidden for privacy." : "") +
       " Please check it below, fix any wrong word or number, then it is already explained:";
@@ -177,6 +179,21 @@ async function run() {
   } catch {
     try { current = analyzeLocal(text); }
     catch { showNotice("⚠ Something went wrong while checking this text on this device. Please try again - or, if a photo failed, type the report text in the box instead."); return; }
+  }
+  // Photo reads can fail silently on stamped / tilted / shadowed reports:
+  // the OCR text then contains no readable results. Say that plainly and
+  // tell the user how to retake it, instead of a confusing "not found".
+  if (lastInputFromPhoto) {
+    const foundCount = current.lab_results.length + current.medications.length + current.unverified_items.length;
+    if (foundCount === 0) {
+      showNotice("📷 Your photo could not be read clearly - no test results were found in it. This can happen with stamped, tilted or shadowed report photos.\n\nPlease take the photo again:\n• Hold the phone straight above the report\n• Fill the whole screen with the report table\n• Use bright light with no shadow, and tap the report on screen to focus\n\nOr type / paste the report values in the box instead.");
+      return;
+    }
+    if (current.lab_results.length <= 2 && !current.emergency) {
+      current.alerts.push({ severity: "moderate", drug: "Photo read",
+        message_en: "Only part of this report could be read from the photo. Please check the text above and fix any missing or wrong numbers - or retake the photo closer, filling the screen with the report.",
+        message_ur: "", message_ps: "" });
+    }
   }
   render();
 }
